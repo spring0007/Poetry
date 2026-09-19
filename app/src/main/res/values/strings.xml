@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Poetry</string>
+    <string name="tab_discover">发现</string>
+    <string name="tab_category">分类</string>
+    <string name="tab_bookshelf">书架</string>
+    <string name="tab_mine">我的</string>
+    <string name="page_discover">发现页面</string>
+    <string name="page_category">分类页面</string>
+    <string name="page_bookshelf">书架页面</string>
+    <string name="page_mine">我的页面</string>
+</resources>
