@@ -1,11 +1,159 @@
 <resources>
-    <string name="app_name">Poetry</string>
+    <!-- 应用名与品牌 -->
+    <string name="app_name">诗韵</string>
+    <string name="brand_name">诗韵</string>
+    <string name="brand_seal">韵</string>
+
+    <!-- 底部导航 -->
     <string name="tab_discover">发现</string>
     <string name="tab_category">分类</string>
     <string name="tab_bookshelf">书架</string>
     <string name="tab_mine">我的</string>
-    <string name="page_discover">发现页面</string>
-    <string name="page_category">分类页面</string>
-    <string name="page_bookshelf">书架页面</string>
-    <string name="page_mine">我的页面</string>
+
+    <!-- 搜索 -->
+    <string name="search_hint">搜索诗题、作者或名句</string>
+    <string name="hot_search">热门搜索</string>
+    <string name="search_result_count">找到 %1$d 个结果</string>
+    <string name="search_no_match">没有匹配的作品</string>
+
+    <!-- 发现页 -->
+    <string name="hero_tag">今日推荐 · 中秋</string>
+    <string name="hero_tag_prefix">今日推荐 · </string>
+    <string name="hero_cta">立即朗读</string>
+    <string name="section_selected">精选诗词</string>
+    <string name="count_poems">%1$d 首</string>
+    <string name="empty_title">没有找到相关作品</string>
+    <string name="empty_desc">换个关键词试试，比如「月」「苏轼」</string>
+
+    <!-- 分类页 -->
+    <string name="category_title">分类浏览</string>
+    <string name="category_subtitle">按体裁、朝代、主题或作者，找到你想读的那一首</string>
+    <string name="section_by_type">按体裁</string>
+    <string name="section_by_type_meta">5 种 · 1101 篇</string>
+    <string name="section_by_dynasty">按朝代</string>
+    <string name="section_by_dynasty_meta">8 个</string>
+    <string name="section_by_theme">按主题</string>
+    <string name="section_by_theme_meta">12 个</string>
+    <string name="section_by_author">热门作者</string>
+    <string name="section_by_author_meta">查看全部 ›</string>
+
+    <!-- 书架页 -->
+    <string name="shelf_title">我的书架</string>
+    <string name="shelf_subtitle">%1$d 首作品 · 随时续读</string>
+    <string name="shelf_stat_fav">收藏作品</string>
+    <string name="shelf_stat_type">涵盖体裁</string>
+    <string name="shelf_stat_hours">朗读小时</string>
+    <string name="shelf_resume">继续朗读 · %1$s</string>
+    <string name="shelf_resume_sub">%1$s · %2$s · 上次读到 %3$d%%</string>
+    <string name="shelf_view_grid">网格</string>
+    <string name="shelf_view_list">列表</string>
+    <string name="shelf_sort_recent">最近</string>
+    <string name="shelf_sort_type">体裁</string>
+    <string name="shelf_sort_hot">热度</string>
+    <string name="shelf_footer">— 共 %1$d 首 · 点 ✕ 可移出书架 —</string>
+    <string name="shelf_empty_title">书架还是空的</string>
+    <string name="shelf_empty_desc">在发现页点击 ♡，或进入作品详情收藏</string>
+    <string name="shelf_empty_action">去发现页看看</string>
+    <string name="shelf_removed">已移出书架</string>
+    <string name="shelf_added">已收入书架</string>
+    <string name="shelf_empty_toast">书架还是空的，去发现页收藏几首吧</string>
+
+    <!-- 我的页 -->
+    <string name="me_title">我的</string>
+    <string name="me_subtitle">阅读偏好与数据统计</string>
+    <string name="me_nickname">青衫客</string>
+    <string name="me_id">ID 1024 · 加入 128 天</string>
+    <string name="me_level">✦ Lv.5 诗友</string>
+    <string name="me_stat_fav">收藏</string>
+    <string name="me_stat_hours">朗读小时</string>
+    <string name="me_stat_days">连续天数</string>
+    <string name="me_checkin">本周打卡</string>
+    <string name="me_checkin_meta">已坚持 %1$d / %2$d 天</string>
+    <string name="me_group_pref">朗读偏好</string>
+    <string name="me_group_pref_meta">全局默认</string>
+    <string name="pref_voice">默认音色</string>
+    <string name="pref_voice_sub">朗读时自动使用</string>
+    <string name="pref_rate">默认语速</string>
+    <string name="pref_font">正文字号</string>
+    <string name="pref_font_sub">诗词正文缩放</string>
+    <string name="pref_vertical">竖排阅读</string>
+    <string name="pref_vertical_sub">进入详情默认竖排</string>
+    <string name="pref_dark">夜间模式</string>
+    <string name="pref_dark_sub">护眼深色主题</string>
+    <string name="font_small">A−</string>
+    <string name="font_normal">标准</string>
+    <string name="font_large">A+</string>
+    <string name="me_group_badges">我的成就</string>
+    <string name="me_badges_meta">%1$d / %2$d 已解锁</string>
+    <string name="me_group_more">更多</string>
+    <string name="more_history">朗读历史</string>
+    <string name="more_history_sub">最近 7 天 24 次</string>
+    <string name="more_download">离线下载</string>
+    <string name="more_download_sub">已缓存 12 首</string>
+    <string name="more_skin">皮肤主题</string>
+    <string name="more_skin_sub">宣纸 · 石青</string>
+    <string name="more_about">关于诗韵</string>
+    <string name="more_about_sub">版本 1.0.0</string>
+    <string name="me_footer">诗韵 · v1.0.0 · 让每一首诗都被听见</string>
+
+    <!-- 详情页 -->
+    <string name="tool_vertical">竖排</string>
+    <string name="tool_font_smaller">A−</string>
+    <string name="tool_font_larger">A+</string>
+    <string name="tool_note">注释</string>
+    <string name="tab_translation">译文</string>
+    <string name="tab_annotation">注释</string>
+    <string name="tab_appreciation">赏析</string>
+    <string name="poem_line_count">%1$d 句</string>
+    <string name="player_voice">音色 · %1$s</string>
+    <string name="player_speed">语速</string>
+    <string name="voice_sheet_title">选择朗读音色</string>
+    <string name="voice_sheet_sub">共 %1$d 种声音 · 点「试听」可预览</string>
+    <string name="voice_tag_local">系统内置</string>
+    <string name="voice_tag_style">风格音色</string>
+    <string name="voice_tag_pitch">音调 %1$s</string>
+    <string name="voice_tag_rate">倍速 %1$s</string>
+    <string name="voice_try">试听</string>
+    <string name="now_reading">开始朗读 · %1$s</string>
+    <string name="tts_unavailable">当前设备不支持语音合成</string>
+    <string name="tts_preview_text">关关雎鸠，在河之洲。</string>
+
+    <!-- 提示 -->
+    <string name="toast_category_filter">已筛选「%1$s」</string>
+    <string name="toast_dynasty">朝代「%1$s」· 共 %2$d 篇</string>
+    <string name="toast_theme_tag">主题「%1$s」· 共 %2$d 篇</string>
+    <string name="toast_author">作者「%1$s」作品集</string>
+    <string name="toast_edit_profile">编辑资料</string>
+    <string name="toast_font_set">正文字号已设为 %1$s</string>
+    <string name="toast_more">%1$s（示例功能）</string>
+
+    <!-- 数据层 / 后台接口 -->
+    <string name="data_loading">正在载入…</string>
+    <string name="data_source_label">数据来源 · %1$s</string>
+    <string name="data_db_hint">把 poetry.db 放到\n%1$s\n即可载入全量诗库</string>
+    <string name="remote_pending">后台接口接入后，这里会显示完整内容</string>
+    <string name="detail_strain">平仄</string>
+    <string name="detail_no_notes">本篇暂无注释</string>
+    <string name="detail_meta">%1$d 句 · %2$d 字</string>
+    <string name="category_all">全部</string>
+    <string name="toast_not_ready">%1$s（后台接口预留）</string>
+    <string name="voice_system_default">系统默认</string>
+    <string name="mine_data_group">数据</string>
+    <string name="mine_data_source">诗库状态</string>
+    <string name="mine_data_ready">已载入本地诗库</string>
+    <string name="mine_data_seed">内置示例数据</string>
+    <string name="cd_voice">选择音色</string>
+    <string name="cd_check">已选中</string>
+
+    <!-- 无障碍描述 -->
+    <string name="cd_back">返回</string>
+    <string name="cd_favorite">收藏</string>
+    <string name="cd_theme">切换深浅色</string>
+    <string name="cd_search">搜索诗词</string>
+    <string name="cd_clear">清空</string>
+    <string name="cd_play">播放</string>
+    <string name="cd_pause">暂停</string>
+    <string name="cd_close">关闭</string>
+    <string name="cd_remove">移出书架</string>
+    <string name="cd_edit">编辑资料</string>
 </resources>

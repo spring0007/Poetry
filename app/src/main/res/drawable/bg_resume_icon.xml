@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 继续朗读图标底：朱红 → 黛紫 圆角渐变 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/radius_md" />
+    <gradient
+        android:angle="315"
+        android:endColor="@color/daizi_500"
+        android:startColor="@color/zhuhong_500"
+        android:type="linear" />
+</shape>

@@ -1,18 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 主壳层：全局顶部搜索栏 + 搜索面板 + 页面容器 + 底部导航 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/paper"
     android:orientation="vertical">
 
+    <!-- ========== 顶部搜索（常驻） ========== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/paper"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_4"
+        android:paddingTop="@dimen/space_3"
+        android:paddingEnd="@dimen/space_4"
+        android:paddingBottom="@dimen/space_2">
+
+        <TextView
+            android:id="@+id/brandSeal"
+            android:layout_width="@dimen/size_seal"
+            android:layout_height="@dimen/size_seal"
+            android:background="@drawable/bg_seal"
+            android:fontFamily="serif"
+            android:gravity="center"
+            android:text="@string/brand_seal"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/brandName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_2"
+            android:text="@string/brand_name"
+            android:textAppearance="@style/TextAppearance.Poetry.Brand" />
+
+        <LinearLayout
+            android:id="@+id/searchField"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/size_search_height"
+            android:layout_marginStart="@dimen/space_3"
+            android:layout_marginEnd="@dimen/space_3"
+            android:layout_weight="1"
+            android:addStatesFromChildren="true"
+            android:background="@drawable/bg_search_field_selector"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/space_3"
+            android:paddingEnd="@dimen/space_2">
+
+            <ImageView
+                android:layout_width="@dimen/size_brand_icon"
+                android:layout_height="@dimen/size_brand_icon"
+                android:contentDescription="@string/cd_search"
+                android:src="@drawable/ic_search"
+                app:tint="@color/ink_400" />
+
+            <EditText
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="@dimen/space_2"
+                android:layout_weight="1"
+                android:autofillHints="username"
+                android:background="@android:color/transparent"
+                android:hint="@string/search_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Poetry.Body"
+                android:textColorHint="@color/ink_400" />
+
+            <ImageButton
+                android:id="@+id/searchClear"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/cd_clear"
+                android:src="@drawable/ic_close"
+                android:tint="@color/ink_400"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/themeButton"
+            style="@style/Widget.Poetry.IconButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:contentDescription="@string/cd_theme"
+            android:src="@drawable/ic_theme" />
+    </LinearLayout>
+
+    <!-- ========== 搜索面板（聚焦时展开） ========== -->
+    <LinearLayout
+        android:id="@+id/searchPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface_1"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/space_4"
+        android:paddingTop="@dimen/space_3"
+        android:paddingEnd="@dimen/space_4"
+        android:paddingBottom="@dimen/space_4"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/panelTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/hot_search"
+            android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/hotChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            app:chipSpacingHorizontal="@dimen/space_2" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/searchResults"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:overScrollMode="never" />
+
+        <TextView
+            android:id="@+id/searchEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="@dimen/space_6"
+            android:text="@string/search_no_match"
+            android:textAppearance="@style/TextAppearance.Poetry.Caption"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- ========== 页面容器 ========== -->
     <FrameLayout
         android:id="@+id/fragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <!-- ========== 底部导航 ========== -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
+        style="@style/Widget.Poetry.BottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:labelVisibilityMode="labeled"

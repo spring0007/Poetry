@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放键：朱红 → 黛紫 圆形渐变 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:angle="315"
+        android:endColor="@color/daizi_500"
+        android:startColor="@color/zhuhong_500"
+        android:type="linear" />
+</shape>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= 间距：8pt 基准 ================= -->
+    <dimen name="space_1">4dp</dimen>
+    <dimen name="space_2">8dp</dimen>
+    <dimen name="space_3">12dp</dimen>
+    <dimen name="space_4">16dp</dimen>
+    <dimen name="space_5">20dp</dimen>
+    <dimen name="space_6">24dp</dimen>
+    <dimen name="space_8">32dp</dimen>
+    <dimen name="space_10">40dp</dimen>
+    <dimen name="space_12">48dp</dimen>
+
+    <!-- 页面左右安全边距 -->
+    <dimen name="page_margin">16dp</dimen>
+    <!-- 底部导航占位高度 -->
+    <dimen name="bottom_nav_space">8dp</dimen>
+
+    <!-- ================= 圆角 ================= -->
+    <dimen name="radius_sm">8dp</dimen>
+    <dimen name="radius_md">14dp</dimen>
+    <dimen name="radius_lg">20dp</dimen>
+    <dimen name="radius_xl">28dp</dimen>
+    <dimen name="radius_full">999dp</dimen>
+
+    <!-- ================= 字号阶梯（1.25 模数） ================= -->
+    <dimen name="text_xs">12sp</dimen>
+    <dimen name="text_sm">14sp</dimen>
+    <dimen name="text_base">16sp</dimen>
+    <dimen name="text_lg">20sp</dimen>
+    <dimen name="text_xl">24sp</dimen>
+    <dimen name="text_xxl">30sp</dimen>
+    <dimen name="text_hero">36sp</dimen>
+
+    <!-- ================= 控件尺寸 ================= -->
+    <dimen name="size_icon_button">40dp</dimen>
+    <dimen name="size_search_height">44dp</dimen>
+    <dimen name="size_touch_min">48dp</dimen>
+    <dimen name="size_seal">26dp</dimen>
+    <dimen name="size_brand_icon">18dp</dimen>
+    <dimen name="size_play_button">56dp</dimen>
+    <dimen name="size_play_icon">26dp</dimen>
+    <dimen name="size_progress_height">5dp</dimen>
+    <dimen name="size_card_bar">4dp</dimen>
+    <dimen name="size_avatar">52dp</dimen>
+    <dimen name="size_profile_avatar">64dp</dimen>
+    <dimen name="size_author_avatar">42dp</dimen>
+    <dimen name="size_group_icon">30dp</dimen>
+    <dimen name="size_badge_icon">42dp</dimen>
+    <dimen name="size_checkin_dot">28dp</dimen>
+    <dimen name="size_type_mark">72dp</dimen>
+    <dimen name="size_mini_slider">96dp</dimen>
+    <dimen name="size_row_icon">30dp</dimen>
+
+    <!-- ================= 行高 / 字距 ================= -->
+    <dimen name="line_spacing_poem">8dp</dimen>
+    <dimen name="line_spacing_body">4dp</dimen>
+
+    <!-- ================= 阴影 ================= -->
+    <dimen name="elevation_card">2dp</dimen>
+    <dimen name="elevation_sheet">8dp</dimen>
+</resources>

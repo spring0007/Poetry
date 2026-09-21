@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 作品详情：工具条 + 正文（横排/竖排） + 译文/注释/赏析 + 底部朗读条 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:orientation="vertical">
+
+    <!-- 工具条 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_2"
+        android:paddingTop="@dimen/space_2"
+        android:paddingEnd="@dimen/space_2"
+        android:paddingBottom="@dimen/space_2">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            style="@style/Widget.Poetry.IconButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:id="@+id/toolbarTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+        <ImageButton
+            android:id="@+id/favButton"
+            style="@style/Widget.Poetry.IconButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:contentDescription="@string/cd_favorite"
+            android:src="@drawable/ic_favorite_border" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/page_margin"
+        android:paddingEnd="@dimen/page_margin"
+        android:paddingBottom="@dimen/space_6">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- 标题 -->
+            <TextView
+                android:id="@+id/poemTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="serif"
+                android:textAppearance="@style/TextAppearance.Poetry.PageTitle" />
+
+            <!-- 徽标 + 作者 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/poemBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_badge"
+                    android:paddingStart="@dimen/space_1"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="@dimen/space_1"
+                    android:paddingBottom="1dp"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/poemAuthor"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+                <TextView
+                    android:id="@+id/poemMeta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+            </LinearLayout>
+
+            <!-- 平仄（可选库可用时展示） -->
+            <LinearLayout
+                android:id="@+id/strainRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/detail_strain"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                    android:textColor="@color/ink_400" />
+
+                <TextView
+                    android:id="@+id/strainText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:fontFamily="monospace"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+            </LinearLayout>
+
+            <!-- 正文：横排 -->
+            <TextView
+                android:id="@+id/poemBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_5"
+                android:fontFamily="serif"
+                android:lineSpacingExtra="@dimen/line_spacing_poem"
+                android:textAppearance="@style/TextAppearance.Poetry.Poem" />
+
+            <!-- 正文：竖排（按句分列，自右向左） -->
+            <HorizontalScrollView
+                android:id="@+id/verticalScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_5"
+                android:fillViewport="false"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/verticalContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- 工具按钮 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_4"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/toolVertical"
+                    style="@style/Widget.Poetry.ToolButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:text="@string/tool_vertical" />
+
+                <Button
+                    android:id="@+id/toolFontSmaller"
+                    style="@style/Widget.Poetry.ToolButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:minWidth="0dp"
+                    android:text="@string/tool_font_smaller" />
+
+                <Button
+                    android:id="@+id/toolFontLarger"
+                    style="@style/Widget.Poetry.ToolButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:minWidth="0dp"
+                    android:text="@string/tool_font_larger" />
+
+                <Button
+                    android:id="@+id/toolNote"
+                    style="@style/Widget.Poetry.ToolButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:minWidth="0dp"
+                    android:text="@string/tool_note" />
+            </LinearLayout>
+
+            <!-- 译文 / 注释 / 赏析 -->
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/contentTabs"
+                style="@style/Widget.Poetry.TabLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_6" />
+
+            <TextView
+                android:id="@+id/contentText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:lineSpacingExtra="@dimen/line_spacing_body"
+                android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- 底部朗读条 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface_1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_4"
+        android:paddingTop="@dimen/space_2"
+        android:paddingEnd="@dimen/space_4"
+        android:paddingBottom="@dimen/space_3">
+
+        <ImageButton
+            android:id="@+id/playButton"
+            android:layout_width="@dimen/size_play_button"
+            android:layout_height="@dimen/size_play_button"
+            android:background="@drawable/bg_play_button"
+            android:contentDescription="@string/cd_play"
+            android:src="@drawable/ic_play"
+            app:tint="@color/white" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_3"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/nowPlaying"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Poetry.BodySmall" />
+
+            <ProgressBar
+                android:id="@+id/playProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/size_progress_height"
+                android:layout_marginTop="@dimen/space_2"
+                android:max="100"
+                android:progressDrawable="@drawable/bg_progress" />
+
+            <TextView
+                android:id="@+id/voiceLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_1"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/voiceButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:layout_marginStart="@dimen/space_2"
+            android:background="@drawable/bg_icon_button"
+            android:contentDescription="@string/cd_voice"
+            android:src="@drawable/ic_volume"
+            app:tint="@color/ink_700" />
+    </LinearLayout>
+
+</LinearLayout>

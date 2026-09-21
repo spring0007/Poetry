@@ -1,15 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 发现页：Hero 今日推荐 + 体裁快捷筛选 + 精选诗词列表 + 空态 -->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/discoverScroll"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:clipToPadding="false"
+    android:paddingStart="@dimen/page_margin"
+    android:paddingTop="@dimen/space_2"
+    android:paddingEnd="@dimen/page_margin"
+    android:paddingBottom="@dimen/space_10">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="@string/page_discover"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="22sp"
-        android:textStyle="bold" />
+        android:orientation="vertical">
 
-</FrameLayout>
+        <!-- 今日推荐 -->
+        <include
+            android:id="@+id/heroCard"
+            layout="@layout/view_hero_card" />
+
+        <!-- 体裁快捷筛选 -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/kindChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_5"
+            app:chipSpacingHorizontal="@dimen/space_2"
+            app:singleLine="false" />
+
+        <!-- 精选诗词 -->
+        <include
+            android:id="@+id/featuredHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/poemList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never" />
+
+        <ProgressBar
+            android:id="@+id/loadingBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/space_8"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/emptyState"
+            layout="@layout/view_empty_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

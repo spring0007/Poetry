@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 今日推荐 Hero：渐变底 + 纹理感 + 立即朗读 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_hero_gradient"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/space_6"
+    android:paddingTop="@dimen/space_6"
+    android:paddingEnd="@dimen/space_5"
+    android:paddingBottom="@dimen/space_5">
+
+    <TextView
+        android:id="@+id/heroTag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_hero_tag"
+        android:paddingStart="@dimen/space_3"
+        android:paddingTop="@dimen/space_1"
+        android:paddingEnd="@dimen/space_3"
+        android:paddingBottom="@dimen/space_1"
+        android:text="@string/hero_tag"
+        android:textAppearance="@style/TextAppearance.Poetry.Caption"
+        android:textColor="@color/white" />
+
+    <TextView
+        android:id="@+id/heroTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_4"
+        android:textAppearance="@style/TextAppearance.Poetry.HeroTitle" />
+
+    <TextView
+        android:id="@+id/heroAuthor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_2"
+        android:textAppearance="@style/TextAppearance.Poetry.BodySmall"
+        android:textColor="@color/white" />
+
+    <TextView
+        android:id="@+id/heroLine"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_5"
+        android:paddingTop="@dimen/space_4"
+        android:textAppearance="@style/TextAppearance.Poetry.HeroLine" />
+
+    <TextView
+        android:id="@+id/heroCta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_4"
+        android:background="@drawable/bg_hero_cta"
+        android:drawablePadding="@dimen/space_1"
+        android:paddingStart="@dimen/space_4"
+        android:paddingTop="@dimen/space_2"
+        android:paddingEnd="@dimen/space_4"
+        android:paddingBottom="@dimen/space_2"
+        android:text="@string/hero_cta"
+        android:textAppearance="@style/TextAppearance.Poetry.Button"
+        android:textColor="@color/color_primary_press" />
+
+</LinearLayout>

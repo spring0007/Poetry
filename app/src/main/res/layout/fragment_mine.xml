@@ -1,15 +1,397 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 我的页：资料卡 + 统计 + 打卡 + 朗读偏好 + 成就 + 更多 + 数据状态 -->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mineScroll"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:clipToPadding="false"
+    android:paddingStart="@dimen/page_margin"
+    android:paddingTop="@dimen/space_4"
+    android:paddingEnd="@dimen/page_margin"
+    android:paddingBottom="@dimen/space_10">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="@string/page_mine"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="22sp"
-        android:textStyle="bold" />
+        android:orientation="vertical">
 
-</FrameLayout>
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/me_title"
+            android:textAppearance="@style/TextAppearance.Poetry.PageTitle" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_1"
+            android:text="@string/me_subtitle"
+            android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+        <!-- 资料卡 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_5"
+            android:background="@drawable/bg_card_lg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="@dimen/space_4">
+
+            <TextView
+                android:id="@+id/profileAvatar"
+                android:layout_width="@dimen/size_profile_avatar"
+                android:layout_height="@dimen/size_profile_avatar"
+                android:background="@drawable/bg_profile_avatar"
+                android:fontFamily="serif"
+                android:gravity="center"
+                android:text="@string/me_nickname"
+                android:textColor="@color/white"
+                android:textSize="@dimen/text_xl"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_4"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/profileName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/me_nickname"
+                    android:textAppearance="@style/TextAppearance.Poetry.CardTitle" />
+
+                <TextView
+                    android:id="@+id/profileId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_1"
+                    android:text="@string/me_id"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+                <TextView
+                    android:id="@+id/profileLevel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:background="@drawable/bg_hero_tag"
+                    android:paddingStart="@dimen/space_2"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="@dimen/space_2"
+                    android:paddingBottom="1dp"
+                    android:text="@string/me_level"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                    android:textColor="@color/white" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/profileEdit"
+                style="@style/Widget.Poetry.IconButton"
+                android:layout_width="@dimen/size_icon_button"
+                android:layout_height="@dimen/size_icon_button"
+                android:contentDescription="@string/cd_edit"
+                android:src="@drawable/ic_edit" />
+        </LinearLayout>
+
+        <!-- 三连统计 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:background="@drawable/bg_card_lg"
+            android:orientation="horizontal"
+            android:padding="@dimen/space_4">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/statFav"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textAppearance="@style/TextAppearance.Poetry.StatValue"
+                    android:textColor="@color/color_primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/me_stat_fav"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/statHours"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textAppearance="@style/TextAppearance.Poetry.StatValue"
+                    android:textColor="@color/color_accent" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/me_stat_hours"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/statDays"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textAppearance="@style/TextAppearance.Poetry.StatValue"
+                    android:textColor="@color/color_gold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/me_stat_days"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 打卡 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:background="@drawable/bg_card_md"
+            android:orientation="vertical"
+            android:padding="@dimen/space_4">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/me_checkin"
+                android:textAppearance="@style/TextAppearance.Poetry.SectionTitle" />
+
+            <LinearLayout
+                android:id="@+id/checkinDots"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:id="@+id/checkinMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:text="@string/me_checkin_meta"
+                android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+        </LinearLayout>
+
+        <!-- 朗读偏好 -->
+        <include
+            android:id="@+id/prefHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:background="@drawable/bg_card_lg"
+            android:orientation="vertical">
+
+            <include
+                android:id="@+id/rowVoice"
+                layout="@layout/view_settings_row" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/space_4">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_rate"
+                    android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/rateSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="0.1"
+                    android:value="1.0"
+                    android:valueFrom="0.6"
+                    android:valueTo="1.8" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/space_4">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/pref_font"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/pref_font_sub"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/fontSmall"
+                    style="@style/Widget.Poetry.SegmentButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:text="@string/font_small" />
+
+                <Button
+                    android:id="@+id/fontNormal"
+                    style="@style/Widget.Poetry.SegmentButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_1"
+                    android:minWidth="0dp"
+                    android:text="@string/font_normal" />
+
+                <Button
+                    android:id="@+id/fontLarge"
+                    style="@style/Widget.Poetry.SegmentButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_1"
+                    android:minWidth="0dp"
+                    android:text="@string/font_large" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/rowVertical"
+                layout="@layout/view_settings_switch_row" />
+
+            <include
+                android:id="@+id/rowDark"
+                layout="@layout/view_settings_switch_row" />
+        </LinearLayout>
+
+        <!-- 成就 -->
+        <include
+            android:id="@+id/badgeHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <LinearLayout
+            android:id="@+id/badgeRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:orientation="horizontal" />
+
+        <!-- 更多 -->
+        <include
+            android:id="@+id/moreHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:background="@drawable/bg_card_lg"
+            android:orientation="vertical">
+
+            <include
+                android:id="@+id/rowHistory"
+                layout="@layout/view_settings_row" />
+
+            <include
+                android:id="@+id/rowDownload"
+                layout="@layout/view_settings_row" />
+
+            <include
+                android:id="@+id/rowSkin"
+                layout="@layout/view_settings_row" />
+
+            <include
+                android:id="@+id/rowAbout"
+                layout="@layout/view_settings_row" />
+        </LinearLayout>
+
+        <!-- 数据状态 -->
+        <include
+            android:id="@+id/dataHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:background="@drawable/bg_card_lg"
+            android:orientation="vertical">
+
+            <include
+                android:id="@+id/rowDataSource"
+                layout="@layout/view_settings_row" />
+
+            <TextView
+                android:id="@+id/dbHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="@dimen/space_4"
+                android:paddingEnd="@dimen/space_4"
+                android:paddingBottom="@dimen/space_4"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_8"
+            android:gravity="center"
+            android:text="@string/me_footer"
+            android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

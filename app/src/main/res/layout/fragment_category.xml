@@ -1,15 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 分类页：按体裁 / 按朝代 / 按主题 / 热门作者 -->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/categoryScroll"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:clipToPadding="false"
+    android:paddingStart="@dimen/page_margin"
+    android:paddingTop="@dimen/space_4"
+    android:paddingEnd="@dimen/page_margin"
+    android:paddingBottom="@dimen/space_10">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="@string/page_category"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="22sp"
-        android:textStyle="bold" />
+        android:orientation="vertical">
 
-</FrameLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/category_title"
+            android:textAppearance="@style/TextAppearance.Poetry.PageTitle" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_1"
+            android:text="@string/category_subtitle"
+            android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+        <!-- 按体裁 -->
+        <include
+            android:id="@+id/typeHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/typeList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never" />
+
+        <!-- 按朝代 -->
+        <include
+            android:id="@+id/dynastyHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/dynastyList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never" />
+
+        <!-- 按主题 -->
+        <include
+            android:id="@+id/themeHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/themeChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            app:chipSpacingHorizontal="@dimen/space_2"
+            app:singleLine="false" />
+
+        <!-- 热门作者 -->
+        <include
+            android:id="@+id/authorHeader"
+            layout="@layout/view_section_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/authorList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 书架统计卡渐变：黛紫 → 朱红 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/radius_lg" />
+    <gradient
+        android:angle="315"
+        android:centerColor="#FFB04079"
+        android:endColor="#FFE04A2F"
+        android:startColor="#FF8C51BE"
+        android:type="linear" />
+</shape>

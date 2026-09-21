@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 音色卡片 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/voiceRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/space_2"
+    android:background="@drawable/bg_card_md"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="@dimen/space_3">
+
+    <TextView
+        android:id="@+id/voiceAvatar"
+        android:layout_width="@dimen/size_author_avatar"
+        android:layout_height="@dimen/size_author_avatar"
+        android:background="@drawable/bg_circle"
+        android:gravity="center"
+        android:textSize="@dimen/text_lg" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_3"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/voiceName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Poetry.BodySmall"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/voiceDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_1"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/voiceTag1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge"
+                android:paddingStart="@dimen/space_1"
+                android:paddingEnd="@dimen/space_1"
+                android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/voiceTag2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_1"
+                android:background="@drawable/bg_badge"
+                android:paddingStart="@dimen/space_1"
+                android:paddingEnd="@dimen/space_1"
+                android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/voiceTry"
+        style="@style/Widget.Poetry.SegmentButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="0dp"
+        android:text="@string/voice_try" />
+
+    <ImageView
+        android:id="@+id/voiceCheck"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="@dimen/space_2"
+        android:contentDescription="@string/cd_favorite"
+        android:src="@drawable/ic_check"
+        android:tint="@color/color_primary"
+        android:visibility="invisible" />
+
+</LinearLayout>

@@ -1,10 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
+    <!-- ================= 品牌色：中国传统色系 ================= -->
+    <!-- 朱红（诗） -->
+    <color name="zhuhong_500">#FFE04A2F</color>
+    <color name="zhuhong_600">#FFC33A22</color>
+    <color name="zhuhong_100">#FFFBE6E2</color>
+    <!-- 黛紫（词） -->
+    <color name="daizi_500">#FF8C51BE</color>
+    <color name="daizi_100">#FFF1E8F8</color>
+    <!-- 石青（曲） -->
+    <color name="shiqing_500">#FF3D86A8</color>
+    <color name="shiqing_100">#FFE3EFF5</color>
+    <!-- 竹绿（赋） -->
+    <color name="zhulv_500">#FF43A06E</color>
+    <color name="zhulv_100">#FFE4F3EA</color>
+    <!-- 藤黄 / 民歌橙（民歌） -->
+    <color name="tenghuang_500">#FFEEBB44</color>
+    <color name="tenghuang_100">#FFFAF0DA</color>
+    <color name="minge_500">#FFE0952E</color>
+    <color name="minge_100">#FFFAEEDC</color>
+
+    <!-- ================= 语义色 ================= -->
+    <color name="color_primary">@color/zhuhong_500</color>
+    <color name="color_primary_press">@color/zhuhong_600</color>
+    <color name="color_accent">@color/shiqing_500</color>
+    <color name="color_accent_soft">@color/shiqing_100</color>
+    <color name="color_gold">@color/tenghuang_500</color>
+    <color name="color_success">@color/zhulv_500</color>
+    <color name="color_danger">#FFD9483B</color>
+
+    <!-- ================= 中性色：暖调墨色（非纯黑） ================= -->
+    <color name="ink_900">#FF2A211C</color>
+    <color name="ink_700">#FF453A33</color>
+    <color name="ink_500">#FF6D625B</color>
+    <color name="ink_400">#FF918579</color>
+    <color name="ink_300">#FFBDB1A6</color>
+    <color name="line">#FFE6DFD8</color>
+    <color name="line_strong">#FFD2C8BE</color>
+
+    <!-- ================= 表面色：宣纸暖白 ================= -->
+    <color name="paper">#FFFDFBF4</color>
+    <color name="surface_1">#FFFFFDF9</color>
+    <color name="surface_2">#FFF8F3E8</color>
+    <color name="surface_3">#FFF0E9DC</color>
+
+    <!-- ================= 通用 ================= -->
     <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="scrim">#802A211C</color>
+
+    <!-- ================= 底部导航选中/未选中 ================= -->
+    <color name="nav_checked">@color/color_primary</color>
+    <color name="nav_unchecked">@color/ink_400</color>
 </resources>

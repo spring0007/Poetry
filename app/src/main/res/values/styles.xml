@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ================= 文本外观：统一字号/字族/字色，避免硬编码 ================= -->
+
+    <!-- 品牌名：宋体 20sp -->
+    <style name="TextAppearance.Poetry.Brand" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">@dimen/text_lg</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink_900</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+    <!-- 页面大标题：宋体 30sp -->
+    <style name="TextAppearance.Poetry.PageTitle" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textSize">@dimen/text_xxl</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink_900</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <!-- 分区标题：宋体 20sp -->
+    <style name="TextAppearance.Poetry.SectionTitle" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">@dimen/text_lg</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink_900</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+
+    <!-- 卡片标题：宋体 20sp -->
+    <style name="TextAppearance.Poetry.CardTitle" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">@dimen/text_lg</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink_900</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+
+    <!-- 正文 16sp -->
+    <style name="TextAppearance.Poetry.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textSize">@dimen/text_base</item>
+        <item name="android:textColor">@color/ink_700</item>
+        <item name="android:lineSpacingExtra">@dimen/line_spacing_body</item>
+    </style>
+
+    <!-- 次要正文 14sp -->
+    <style name="TextAppearance.Poetry.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">@dimen/text_sm</item>
+        <item name="android:textColor">@color/ink_700</item>
+    </style>
+
+    <!-- 辅助说明 12sp -->
+    <style name="TextAppearance.Poetry.Caption" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">@dimen/text_xs</item>
+        <item name="android:textColor">@color/ink_500</item>
+    </style>
+
+    <!-- 更弱的四级文字 12sp -->
+    <style name="TextAppearance.Poetry.CaptionWeak" parent="TextAppearance.Poetry.Caption">
+        <item name="android:textColor">@color/ink_400</item>
+    </style>
+
+    <!-- 诗词正文：宋体 24sp -->
+    <style name="TextAppearance.Poetry.Poem" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">@dimen/text_xl</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textColor">@color/ink_900</item>
+        <item name="android:lineSpacingExtra">@dimen/line_spacing_poem</item>
+        <item name="android:letterSpacing">0.09</item>
+    </style>
+
+    <!-- Hero 标题：宋体 36sp 白色 -->
+    <style name="TextAppearance.Poetry.HeroTitle" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textSize">@dimen/text_hero</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <!-- Hero 引句：宋体 20sp 白色 -->
+    <style name="TextAppearance.Poetry.HeroLine" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">@dimen/text_lg</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:lineSpacingExtra">@dimen/line_spacing_poem</item>
+        <item name="android:letterSpacing">0.1</item>
+    </style>
+
+    <!-- 数值统计：宋体 24sp -->
+    <style name="TextAppearance.Poetry.StatValue" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textSize">@dimen/text_xl</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ink_900</item>
+    </style>
+
+    <!-- 按钮文字 14sp -->
+    <style name="TextAppearance.Poetry.Button" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">@dimen/text_sm</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- ================= 控件样式 ================= -->
+
+    <!-- 圆形图标按钮 40dp -->
+    <style name="Widget.Poetry.IconButton" parent="android:Widget.ImageButton">
+        <item name="android:background">@drawable/bg_icon_button</item>
+        <item name="android:tint">@color/ink_700</item>
+        <item name="android:contentDescription">@string/cd_theme</item>
+    </style>
+
+    <!-- 筛选 Chip（分类/排序/音色快捷条） -->
+    <style name="Widget.Poetry.Chip" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="chipBackgroundColor">@color/chip_bg_selector</item>
+        <item name="android:textColor">@color/chip_text_selector</item>
+        <item name="chipStrokeColor">@color/chip_stroke_selector</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipCornerRadius">@dimen/radius_full</item>
+        <item name="chipStartPadding">@dimen/space_3</item>
+        <item name="chipEndPadding">@dimen/space_3</item>
+        <item name="chipMinTouchTargetSize">0dp</item>
+        <item name="ensureMinTouchTargetSize">false</item>
+        <item name="android:textSize">@dimen/text_sm</item>
+        <item name="android:textAppearance">@style/TextAppearance.Poetry.BodySmall</item>
+    </style>
+
+    <!-- 描边 Chip（热门搜索 / 主题标签） -->
+    <style name="Widget.Poetry.Chip.Ghost" parent="Widget.Poetry.Chip">
+        <item name="chipBackgroundColor">@color/chip_ghost_bg_selector</item>
+        <item name="android:textColor">@color/chip_ghost_text_selector</item>
+        <item name="chipStrokeColor">@color/line</item>
+    </style>
+
+    <!-- 分段控件按钮（网格/列表、字号档位） -->
+    <style name="Widget.Poetry.SegmentButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textSize">@dimen/text_xs</item>
+        <item name="android:textAppearance">@style/TextAppearance.Poetry.Caption</item>
+        <item name="android:minHeight">36dp</item>
+        <item name="android:paddingLeft">@dimen/space_3</item>
+        <item name="android:paddingRight">@dimen/space_3</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="cornerRadius">@dimen/radius_full</item>
+        <item name="backgroundTint">@color/segment_bg_selector</item>
+        <item name="android:textColor">@color/segment_text_selector</item>
+        <item name="strokeColor">@color/segment_stroke_selector</item>
+    </style>
+
+    <!-- 工具栏胶囊按钮（竖排 / A− / A+ / 注释） -->
+    <style name="Widget.Poetry.ToolButton" parent="Widget.Poetry.SegmentButton">
+        <item name="android:minHeight">40dp</item>
+        <item name="android:paddingLeft">@dimen/space_4</item>
+        <item name="android:paddingRight">@dimen/space_4</item>
+    </style>
+
+    <!-- 主操作按钮 -->
+    <style name="Widget.Poetry.PrimaryButton" parent="Widget.Material3.Button">
+        <item name="android:textAppearance">@style/TextAppearance.Poetry.Button</item>
+        <item name="backgroundTint">@color/color_primary</item>
+        <item name="cornerRadius">@dimen/radius_full</item>
+    </style>
+
+    <!-- 标签页 -->
+    <style name="Widget.Poetry.TabLayout" parent="Widget.Material3.TabLayout">
+        <item name="tabIndicatorColor">@color/color_primary</item>
+        <item name="tabIndicatorFullWidth">false</item>
+        <item name="tabTextColor">@color/tab_text_selector</item>
+        <item name="tabTextAppearance">@style/TextAppearance.Poetry.BodySmall</item>
+        <item name="tabMode">fixed</item>
+        <item name="tabGravity">fill</item>
+    </style>
+
+    <!-- 底部导航：宣纸底 + 品牌色选中态 -->
+    <style name="Widget.Poetry.BottomNav" parent="Widget.Material3.BottomNavigationView">
+        <item name="itemIconTint">@color/nav_item_color</item>
+        <item name="itemTextColor">@color/nav_item_color</item>
+        <item name="itemRippleColor">@color/zhuhong_100</item>
+        <item name="android:background">@color/paper</item>
+        <item name="elevation">0dp</item>
+    </style>
+</resources>
