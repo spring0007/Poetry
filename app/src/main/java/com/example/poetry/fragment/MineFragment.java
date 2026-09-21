@@ -18,8 +18,10 @@ import androidx.core.view.ViewCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.poetry.R;
+import com.example.poetry.VoiceSettingsActivity;
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.local.UserStore;
+import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.databinding.FragmentMineBinding;
 import com.example.poetry.media.Speaker;
@@ -127,12 +129,19 @@ public class MineFragment extends Fragment {
                     }
                 }));
 
+        // 语音设置（发音人 / 语速 / 音调 / 音量 / 引擎）
+        binding.rowSpeech.rowTitle.setText(R.string.pref_speech);
+        binding.rowSpeech.rowSub.setText(R.string.pref_speech_sub);
+        binding.rowSpeech.rowValue.setText(speechSummary());
+        binding.rowSpeech.getRoot().setOnClickListener(v ->
+                VoiceSettingsActivity.open(requireContext()));
+
         // 语速
-        float rate = store.getSpeechRate();
+        float rate = store.getTtsConfig().getRate();
         binding.rateSlider.setValue(rate);
         Speaker.get().setRate(rate);
         binding.rateSlider.addOnChangeListener((slider, value, fromUser) -> {
-            store.setSpeechRate(value);
+            store.updateTtsConfig(config -> config.setRate(value));
             Speaker.get().setRate(value);
         });
 
@@ -162,11 +171,19 @@ public class MineFragment extends Fragment {
         });
     }
 
+    /** 「语音设置」行摘要：发音人 + 语速 */
+    @NonNull
+    private String speechSummary() {
+        TtsConfig config = store.getTtsConfig();
+        return String.format(java.util.Locale.CHINA, "%s · %.1f×",
+                currentVoiceName(), config.getRate());
+    }
+
     @NonNull
     private String currentVoiceName() {
-        String saved = store.getVoiceId();
+        String saved = store.getTtsConfig().getVoiceId();
         if (saved.isEmpty()) {
-            return getString(R.string.voice_system_default);
+            return getString(R.string.voice_default_name);
         }
         for (Voice voice : Speaker.get().listVoices()) {
             if (voice.getId().equals(saved)) {

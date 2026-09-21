@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 语音设置页：发音人 / 音调 / 音量 / 引擎切换（对应「我的 · 朗读偏好 → 语音设置」） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:orientation="vertical">
+
+    <!-- 工具条 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_2"
+        android:paddingTop="@dimen/space_2"
+        android:paddingEnd="@dimen/space_2"
+        android:paddingBottom="@dimen/space_2">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            style="@style/Widget.Poetry.IconButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="@string/tts_settings_title"
+            android:textAppearance="@style/TextAppearance.Poetry.SectionTitle" />
+
+        <View
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/page_margin"
+        android:paddingTop="@dimen/space_2"
+        android:paddingEnd="@dimen/page_margin"
+        android:paddingBottom="@dimen/space_10">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- 发音人 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:background="@drawable/bg_card_lg"
+                android:orientation="vertical"
+                android:padding="@dimen/space_4">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/tts_voice_label"
+                        android:textAppearance="@style/TextAppearance.Poetry.CardTitle" />
+
+                    <TextView
+                        android:id="@+id/voiceMeta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tts_voice_meta"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+                    <TextView
+                        android:id="@+id/engineStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_1"
+                        android:text="@string/tts_engine_status"
+                        android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/voiceList"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/size_voice_list"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:nestedScrollingEnabled="true" />
+            </LinearLayout>
+
+            <!-- 语速 / 音调 / 音量 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:background="@drawable/bg_card_lg"
+                android:orientation="vertical"
+                android:padding="@dimen/space_4">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/pref_rate"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                    <TextView
+                        android:id="@+id/rateValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tts_ratio_value"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/rateSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="0.1"
+                    android:value="@dimen/tts_rate_default"
+                    android:valueFrom="@dimen/tts_rate_min"
+                    android:valueTo="@dimen/tts_rate_max" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/tts_pitch"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                    <TextView
+                        android:id="@+id/pitchValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tts_ratio_value"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/pitchSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="0.1"
+                    android:value="@dimen/tts_pitch_default"
+                    android:valueFrom="@dimen/tts_pitch_min"
+                    android:valueTo="@dimen/tts_pitch_max" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/tts_volume"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                    <TextView
+                        android:id="@+id/volumeValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tts_percent_value"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/volumeSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="0.05"
+                    android:value="@dimen/tts_volume_default"
+                    android:valueFrom="@dimen/tts_volume_min"
+                    android:valueTo="@dimen/tts_volume_max" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/tts_pitch_range"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                    <TextView
+                        android:id="@+id/pitchRangeValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tts_ratio_value"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/pitchRangeSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="0.1"
+                    android:value="@dimen/tts_pitchrange_default"
+                    android:valueFrom="@dimen/tts_pitchrange_min"
+                    android:valueTo="@dimen/tts_pitchrange_max" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/tts_word_gap"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
+                    <TextView
+                        android:id="@+id/wordGapValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tts_pace_value"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/wordGapSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="@dimen/tts_wordgap_default"
+                    android:valueFrom="@dimen/tts_wordgap_min"
+                    android:valueTo="@dimen/tts_wordgap_max" />
+            </LinearLayout>
+
+            <!-- 操作 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_4"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/testButton"
+                    style="@style/Widget.Poetry.PrimaryButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/tts_test" />
+
+                <Button
+                    android:id="@+id/resetButton"
+                    style="@style/Widget.Poetry.ToolButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:layout_weight="1"
+                    android:text="@string/tts_reset" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/reloadButton"
+                style="@style/Widget.Poetry.ToolButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:text="@string/tts_reload_data" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

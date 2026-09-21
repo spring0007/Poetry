@@ -1,0 +1,22 @@
+﻿=== voices (non-recursive, with mode) ===
+d-----          1  !v
+d-----          1  mb
+=== root of espeak-ng-data ===
+d-----          1  lang
+d-----          1  voices
+-a----    1566347  cmn_dict
+-a----     168204  en_dict
+-a----       3335  hak_dict
+-a----       2312  intonations
+-a----     554740  phondata
+-a----      21866  phondata-manifest
+-a----      43316  phonindex
+-a----      58652  phontab
+-a----          7  version
+-a----     563571  yue_dict
+=== search for cmn/yue/hak voice files anywhere ===
+E:\AndroidPro\Poetry\app\src\main\assets\espeak-ng-data\lang\sit\cmn
+E:\AndroidPro\Poetry\app\src\main\assets\espeak-ng-data\lang\sit\cmn-Latn-pinyin
+E:\AndroidPro\Poetry\app\src\main\assets\espeak-ng-data\lang\sit\hak
+E:\AndroidPro\Poetry\app\src\main\assets\espeak-ng-data\lang\sit\yue
+E:\AndroidPro\Poetry\app\src\main\assets\espeak-ng-data\lang\sit\yue-Latn-jyutping

@@ -27,8 +27,9 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/voiceList"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="360dp"
         android:layout_marginTop="@dimen/space_3"
+        android:nestedScrollingEnabled="true"
         android:overScrollMode="never" />
 
     <TextView
@@ -38,5 +39,13 @@
         android:layout_marginTop="@dimen/space_2"
         android:text="@string/remote_pending"
         android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+
+    <Button
+        android:id="@+id/voiceSettingsButton"
+        style="@style/Widget.Poetry.ToolButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_3"
+        android:text="@string/tts_settings_title" />
 
 </LinearLayout>

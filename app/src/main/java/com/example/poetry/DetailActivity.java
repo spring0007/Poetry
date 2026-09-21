@@ -313,36 +313,50 @@ public class DetailActivity extends AppCompatActivity {
                     }
                 }));
 
-        Speaker.get().setListener(new Speaker.Listener() {
-            @Override
-            public void onStart() {
-                playing = true;
-                updatePlayIcon();
-                startProgress();
-            }
-
-            @Override
-            public void onDone() {
-                playing = false;
-                updatePlayIcon();
-                stopProgress();
-                binding.playProgress.setProgress(100);
-                store.setProgress(poem.getId(), 100);
-            }
-
-            @Override
-            public void onError(String message) {
-                playing = false;
-                updatePlayIcon();
-                stopProgress();
-                Toast.makeText(DetailActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
+        Speaker.get().setListener(playerListener);
     }
 
+    /** 朗读状态回调：从设置页返回时单例上的监听会被置空，因此每次播放前重新挂上 */
+    private final Speaker.Listener playerListener = new Speaker.Listener() {
+        @Override
+        public void onStart() {
+            playing = true;
+            updatePlayIcon();
+            startProgress();
+        }
+
+        @Override
+        public void onDone() {
+            playing = false;
+            updatePlayIcon();
+            stopProgress();
+            binding.playProgress.setProgress(100);
+            store.setProgress(poem.getId(), 100);
+        }
+
+        @Override
+        public void onError(String message) {
+            playing = false;
+            updatePlayIcon();
+            stopProgress();
+            Toast.makeText(DetailActivity.this, message, Toast.LENGTH_SHORT).show();
+        }
+    };
+
     private void updateVoiceLabel() {
-        String voiceId = store.getVoiceId();
-        String name = voiceId.isEmpty() ? getString(R.string.voice_system_default) : voiceId;
+        String voiceId = store.getTtsConfig().getVoiceId();
+        String name = voiceId.isEmpty() ? getString(R.string.voice_system_default) : "";
+        if (name.isEmpty()) {
+            for (com.example.poetry.data.model.Voice voice : Speaker.get().listVoices()) {
+                if (voice.getId().equals(voiceId)) {
+                    name = voice.getName();
+                    break;
+                }
+            }
+        }
+        if (name.isEmpty()) {
+            name = voiceId;
+        }
         binding.voiceLabel.setText(getString(R.string.player_voice, name));
     }
 
@@ -356,11 +370,9 @@ public class DetailActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.tts_unavailable, Toast.LENGTH_SHORT).show();
             return;
         }
-        String voiceId = store.getVoiceId();
-        if (!voiceId.isEmpty()) {
-            Speaker.get().setVoice(voiceId);
-        }
-        Speaker.get().setRate(store.getSpeechRate());
+        // 直接应用整份配置：引擎 + 发音人 + 语速 + 音调 + 音量
+        Speaker.get().apply(store.getTtsConfig());
+        Speaker.get().setListener(playerListener);
         Speaker.get().speak(poem.getBody().replace("\n", "。"));
     }
 

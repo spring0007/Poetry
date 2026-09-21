@@ -72,6 +72,7 @@
                 android:imeOptions="actionSearch"
                 android:inputType="text"
                 android:maxLines="1"
+                android:focusable="false"
                 android:textAppearance="@style/TextAppearance.Poetry.Body"
                 android:textColorHint="@color/ink_400" />
 

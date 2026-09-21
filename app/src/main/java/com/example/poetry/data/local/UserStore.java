@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 
 import com.example.poetry.data.model.Poem;
+import com.example.poetry.data.model.TtsConfig;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,6 +37,7 @@ public final class UserStore {
     private static final String KEY_VERTICAL = "vertical_reading";
     private static final String KEY_CHECKIN = "checkin_days";
     private static final String KEY_PLAY_COUNT = "play_count";
+    private static final String KEY_TTS = "tts_config";
 
     /** 夜间模式：跟随系统 */
     public static final int NIGHT_FOLLOW_SYSTEM = 0;
@@ -181,20 +183,73 @@ public final class UserStore {
         pref.edit().putFloat(KEY_FONT, scale).apply();
     }
 
+    /**
+     * 语音配置（引擎 / 发音人 / 语速 / 音调 / 音量）。
+     * 读取失败或损坏时返回 {@link TtsConfig#defaults()}，不影响其它功能。
+     */
+    @NonNull
+    public TtsConfig getTtsConfig() {
+        String raw = pref.getString(KEY_TTS, "");
+        if (raw != null && !raw.isEmpty()) {
+            return TtsConfig.fromJson(raw);
+        }
+        return migrateLegacyVoiceSettings();
+    }
+
+    /**
+     * 兼容早期版本：那时音色与语速是两个独立 key，这里升级成整份配置后清掉旧 key。
+     */
+    @NonNull
+    private TtsConfig migrateLegacyVoiceSettings() {
+        TtsConfig config = TtsConfig.defaults();
+        String legacyVoice = pref.getString(KEY_VOICE, null);
+        if (legacyVoice != null && !legacyVoice.isEmpty()) {
+            config.setVoiceId(legacyVoice);
+        }
+        if (pref.contains(KEY_RATE)) {
+            config.setRate(pref.getFloat(KEY_RATE, TtsConfig.RATE_DEFAULT));
+        }
+        if (legacyVoice != null || pref.contains(KEY_RATE)) {
+            pref.edit().putString(KEY_TTS, config.toJson().toString())
+                    .remove(KEY_VOICE).remove(KEY_RATE).apply();
+        }
+        return config;
+    }
+
+    public void setTtsConfig(@NonNull TtsConfig config) {
+        pref.edit().putString(KEY_TTS, config.toJson().toString()).apply();
+    }
+
+    /** 在既有配置基础上做局部修改 */
+    public void updateTtsConfig(@NonNull Consumer<TtsConfig> editor) {
+        TtsConfig config = getTtsConfig();
+        editor.accept(config);
+        setTtsConfig(config);
+    }
+
+    /** 局部修改回调 */
+    public interface Consumer<T> {
+        void accept(T value);
+    }
+
+    /** 兼容旧接口：写入默认发音人 */
     public String getVoiceId() {
-        return pref.getString(KEY_VOICE, "");
+        return getTtsConfig().getVoiceId();
     }
 
+    /** 兼容旧接口：设置默认发音人 */
     public void setVoiceId(String voiceId) {
-        pref.edit().putString(KEY_VOICE, voiceId == null ? "" : voiceId).apply();
+        updateTtsConfig(config -> config.setVoiceId(voiceId));
     }
 
+    /** 兼容旧接口：读取默认语速（倍率） */
     public float getSpeechRate() {
-        return pref.getFloat(KEY_RATE, 1.0f);
+        return getTtsConfig().getRate();
     }
 
+    /** 兼容旧接口：设置默认语速（倍率） */
     public void setSpeechRate(float rate) {
-        pref.edit().putFloat(KEY_RATE, rate).apply();
+        updateTtsConfig(config -> config.setRate(rate));
     }
 
     public boolean isVerticalReading() {

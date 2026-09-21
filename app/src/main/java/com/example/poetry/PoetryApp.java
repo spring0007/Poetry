@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.local.UserStore;
+import com.example.poetry.media.Speaker;
 
 /**
  * 应用入口：初始化数据仓库、朗读引擎，并在启动时恢复夜间模式偏好。
@@ -19,6 +20,9 @@ public class PoetryApp extends Application {
         UserStore store = UserStore.get(this);
         // 预热仓库（内部会尝试打开 poetry.db）
         PoetryRepository.get(this);
+        // 预热朗读引擎：异步释放 espeak-ng-data 并初始化原生库，同时恢复上次的语音配置
+        Speaker.get().prepare(this, null);
+        Speaker.get().apply(store.getTtsConfig());
 
         switch (store.getNightMode()) {
             case UserStore.NIGHT_ON:

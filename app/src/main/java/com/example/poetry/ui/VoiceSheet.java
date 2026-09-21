@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.poetry.R;
+import com.example.poetry.VoiceSettingsActivity;
 import com.example.poetry.adapter.VoiceAdapter;
 import com.example.poetry.data.local.UserStore;
 import com.example.poetry.data.model.Voice;

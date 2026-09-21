@@ -40,6 +40,14 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Poetry"
             android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".VoiceSettingsActivity"
+            android:exported="false"
+            android:label="@string/tts_settings_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>
