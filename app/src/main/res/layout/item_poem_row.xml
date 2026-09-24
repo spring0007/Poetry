@@ -8,10 +8,10 @@
     android:layout_marginBottom="@dimen/space_2"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="@color/surface_1"
+    app:cardBackgroundColor="?attr/colorSurface"
     app:cardCornerRadius="@dimen/radius_md"
     app:cardElevation="0dp"
-    app:strokeColor="@color/line"
+    app:strokeColor="?attr/colorOutline"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -77,6 +77,6 @@
             android:background="@drawable/bg_circle"
             android:contentDescription="@string/cd_remove"
             android:src="@drawable/ic_close"
-            android:tint="@color/ink_400" />
+            app:tint="@color/ink_400" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

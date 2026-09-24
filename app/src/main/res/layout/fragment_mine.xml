@@ -5,7 +5,7 @@
     android:id="@+id/mineScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/paper"
+    android:background="?android:attr/colorBackground"
     android:clipToPadding="false"
     android:paddingStart="@dimen/page_margin"
     android:paddingTop="@dimen/space_4"
@@ -184,11 +184,25 @@
             android:orientation="vertical"
             android:padding="@dimen/space_4">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/me_checkin"
-                android:textAppearance="@style/TextAppearance.Poetry.SectionTitle" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/me_checkin"
+                    android:textAppearance="@style/TextAppearance.Poetry.SectionTitle" />
+
+                <TextView
+                    android:id="@+id/checkinStreak"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/checkinDots"
@@ -204,6 +218,14 @@
                 android:layout_marginTop="@dimen/space_2"
                 android:text="@string/me_checkin_meta"
                 android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+                <Button
+                    android:id="@+id/checkinButton"
+                    style="@style/Widget.Poetry.ToolButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:text="@string/me_checkin_today" />
         </LinearLayout>
 
         <!-- 朗读偏好 -->
@@ -311,6 +333,14 @@
             <include
                 android:id="@+id/rowDark"
                 layout="@layout/view_settings_switch_row" />
+
+                <include
+                    android:id="@+id/rowAutoPlay"
+                    layout="@layout/view_settings_switch_row" />
+
+                <include
+                    android:id="@+id/rowContinuous"
+                    layout="@layout/view_settings_switch_row" />
         </LinearLayout>
 
         <!-- 成就 -->

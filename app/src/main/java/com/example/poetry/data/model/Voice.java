@@ -3,13 +3,12 @@ package com.example.poetry.data.model;
 import androidx.annotation.NonNull;
 
 /**
- * 朗读音色。
+ * 朗读音色，由内置的离线引擎（{@code SherpaTts}）从语音包里枚举出来。
  * <p>
- * 两种来源：
- * <ol>
- *   <li>系统内置：由 {@link android.speech.tts.TextToSpeech} 枚举出的中文音色；</li>
- *   <li>云端音色：由后台接口下发（{@code ApiConfig.API_VOICES}，预留）。</li>
- * </ol>
+ * {@code id} 形如 {@code sherpa-<语音包>-<sid>}，会原样存进 {@link TtsConfig}，
+ * 所以它必须在同一个语音包下保持稳定——换了模型文件就可能对不上，
+ * 那时按「没匹配上就用默认」处理（见 {@code SherpaTts.resolve}）。
+ * {@code desc} 是音色气质的一句话，{@code tag1/tag2} 放性别与语种标签供列表展示。
  */
 public class Voice {
 

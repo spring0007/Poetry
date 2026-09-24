@@ -2,6 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 下载诗库用。除此之外 App 不发起任何网络请求，朗读全在手机上完成 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        读当前网络状态：判断「是不是不计流量的网络」。
+        普通权限，不弹框。缺了不会崩——DbDownloadPolicy 里 try/catch 之后按「可以下」处理，
+        代价是自动模式会静默地在移动网络上下载。
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".PoetryApp"
         android:allowBackup="true"
@@ -9,6 +19,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Poetry">
@@ -45,6 +56,38 @@
             android:name=".VoiceSettingsActivity"
             android:exported="false"
             android:label="@string/tts_settings_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".SkinActivity"
+            android:exported="false"
+            android:label="@string/skin_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:label="@string/about_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="false"
+            android:label="@string/profile_title"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Poetry"
             android:windowSoftInputMode="adjustResize" />

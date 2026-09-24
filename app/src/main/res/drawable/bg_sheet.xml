@@ -7,5 +7,5 @@
         android:bottomRightRadius="0dp"
         android:topLeftRadius="@dimen/radius_xl"
         android:topRightRadius="@dimen/radius_xl" />
-    <solid android:color="@color/surface_1" />
+    <solid android:color="?attr/colorSurface" />
 </shape>

@@ -1,0 +1,10 @@
+{
+  "schema_version": "3.0",
+  "built_at": "2026-09-24T12:00:00",
+  "bytes": 2310144,
+  "sha256": "cff8baf5445ea8eca4654c161298d1c7d985b0c4cf5c3419fff471f2a159dde4",
+  "is_subset": true,
+  "n_poems": 2062,
+  "url": "https://api.example.com/poetry/poetry.db",
+  "note": "测试期子集库：每个 src_id 按 score 取前 200 条，作者只留被引用的；另按关键词兜底补了 130 条，涉及 9 个关键词，保证首页热门搜索与主题 chip 点下去不为空。"
+}

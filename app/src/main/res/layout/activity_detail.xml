@@ -1,58 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 作品详情：工具条 + 正文（横排/竖排） + 译文/注释/赏析 + 底部朗读条 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  作品详情：顶部标题栏（滚动时显现标题）+ 正文（横排/竖排，可注音）+ 译文/注释/赏析 + 底部朗读条
+  竖屏下正文与标题一律居中排版。
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/paper"
-    android:orientation="vertical">
+    android:background="?android:attr/colorBackground">
 
-    <!-- 工具条 -->
-    <LinearLayout
+    <!-- 顶部标题栏 -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="@dimen/space_2"
-        android:paddingTop="@dimen/space_2"
-        android:paddingEnd="@dimen/space_2"
-        android:paddingBottom="@dimen/space_2">
+        android:background="?attr/colorSurface"
+        app:liftOnScroll="true">
 
-        <ImageButton
-            android:id="@+id/backButton"
-            style="@style/Widget.Poetry.IconButton"
-            android:layout_width="@dimen/size_icon_button"
-            android:layout_height="@dimen/size_icon_button"
-            android:contentDescription="@string/cd_back"
-            android:src="@drawable/ic_back" />
-
-        <TextView
-            android:id="@+id/toolbarTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:textAppearance="@style/TextAppearance.Poetry.Body" />
-
-        <ImageButton
-            android:id="@+id/favButton"
-            style="@style/Widget.Poetry.IconButton"
-            android:layout_width="@dimen/size_icon_button"
-            android:layout_height="@dimen/size_icon_button"
-            android:contentDescription="@string/cd_favorite"
-            android:src="@drawable/ic_favorite_border" />
-    </LinearLayout>
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:menu="@menu/menu_detail"
+            app:navigationContentDescription="@string/cd_back"
+            app:navigationIcon="@drawable/ic_back"
+            app:titleCentered="true" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/detailScroll"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
         android:clipToPadding="false"
         android:paddingStart="@dimen/page_margin"
         android:paddingEnd="@dimen/page_margin"
-        android:paddingBottom="@dimen/space_6">
+        android:paddingBottom="@dimen/space_6"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -64,14 +47,18 @@
                 android:id="@+id/poemTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="serif"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="@dimen/space_2"
+                android:gravity="center"
+                android:includeFontPadding="false"
                 android:textAppearance="@style/TextAppearance.Poetry.PageTitle" />
 
             <!-- 徽标 + 作者 -->
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_2"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="@dimen/space_3"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -80,10 +67,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_badge"
-                    android:paddingStart="@dimen/space_1"
-                    android:paddingTop="1dp"
-                    android:paddingEnd="@dimen/space_1"
-                    android:paddingBottom="1dp"
+                    android:includeFontPadding="false"
+                    android:paddingStart="@dimen/space_2"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="@dimen/space_2"
+                    android:paddingBottom="2dp"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption"
                     android:textSize="11sp" />
 
@@ -92,22 +80,25 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/space_2"
+                    android:includeFontPadding="false"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption" />
-
-                <TextView
-                    android:id="@+id/poemMeta"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
-                    android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/poemMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="@dimen/space_1"
+                android:includeFontPadding="false"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
 
             <!-- 平仄（可选库可用时展示） -->
             <LinearLayout
                 android:id="@+id/strainRow"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginTop="@dimen/space_3"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -116,6 +107,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
                     android:text="@string/detail_strain"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption"
                     android:textColor="@color/ink_400" />
@@ -126,18 +118,35 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/space_2"
                     android:fontFamily="monospace"
+                    android:includeFontPadding="false"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption" />
             </LinearLayout>
 
-            <!-- 正文：横排 -->
+            <!-- 正文：横排（无注音） -->
             <TextView
                 android:id="@+id/poemBody"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space_5"
-                android:fontFamily="serif"
-                android:lineSpacingExtra="@dimen/line_spacing_poem"
+                android:gravity="center"
+                android:includeFontPadding="false"
                 android:textAppearance="@style/TextAppearance.Poetry.Poem" />
+
+            <!-- 正文：带拼音注音（横排 / 竖排都用它；竖排列数多时可横向滚动） -->
+            <HorizontalScrollView
+                android:id="@+id/pinyinScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_5"
+                android:fillViewport="true"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <com.example.poetry.ui.PinyinView
+                    android:id="@+id/pinyinBody"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </HorizontalScrollView>
 
             <!-- 正文：竖排（按句分列，自右向左） -->
             <HorizontalScrollView
@@ -152,54 +161,79 @@
                     android:id="@+id/verticalContainer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:gravity="end|center_vertical"
+                    android:layout_gravity="center_horizontal"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal" />
             </HorizontalScrollView>
 
             <!-- 工具按钮 -->
-            <LinearLayout
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_4"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginTop="@dimen/space_5"
+                android:scrollbars="none">
 
-                <Button
-                    android:id="@+id/toolVertical"
-                    style="@style/Widget.Poetry.ToolButton"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minWidth="0dp"
-                    android:text="@string/tool_vertical" />
+                    android:layout_gravity="center_horizontal"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/toolFontSmaller"
-                    style="@style/Widget.Poetry.ToolButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/space_2"
-                    android:minWidth="0dp"
-                    android:text="@string/tool_font_smaller" />
+                    <Button
+                        android:id="@+id/toolVertical"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="0dp"
+                        android:text="@string/tool_vertical" />
 
-                <Button
-                    android:id="@+id/toolFontLarger"
-                    style="@style/Widget.Poetry.ToolButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/space_2"
-                    android:minWidth="0dp"
-                    android:text="@string/tool_font_larger" />
+                    <Button
+                        android:id="@+id/toolFontSmaller"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_2"
+                        android:minWidth="0dp"
+                        android:text="@string/tool_font_smaller" />
 
-                <Button
-                    android:id="@+id/toolNote"
-                    style="@style/Widget.Poetry.ToolButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/space_2"
-                    android:minWidth="0dp"
-                    android:text="@string/tool_note" />
-            </LinearLayout>
+                    <Button
+                        android:id="@+id/toolFontLarger"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_2"
+                        android:minWidth="0dp"
+                        android:text="@string/tool_font_larger" />
+
+                    <Button
+                        android:id="@+id/toolFontFamily"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_2"
+                        android:minWidth="0dp"
+                        android:text="@string/tool_font_family" />
+
+                    <Button
+                        android:id="@+id/toolNote"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_2"
+                        android:minWidth="0dp"
+                        android:text="@string/tool_note" />
+
+                    <Button
+                        android:id="@+id/toolPinyin"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_2"
+                        android:minWidth="0dp"
+                        android:text="@string/tool_pinyin" />
+                </LinearLayout>
+            </HorizontalScrollView>
 
             <!-- 译文 / 注释 / 赏析 -->
             <com.google.android.material.tabs.TabLayout
@@ -224,7 +258,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/surface_1"
+        android:layout_gravity="bottom"
+        android:background="?attr/colorSurface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="@dimen/space_4"
@@ -284,4 +319,4 @@
             app:tint="@color/ink_700" />
     </LinearLayout>
 
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

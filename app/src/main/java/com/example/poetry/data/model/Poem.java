@@ -51,6 +51,9 @@ public class Poem implements Parcelable {
     /** 赏析：后台接口预留字段 */
     private String appreciation;
 
+    /** 收藏时间（毫秒时间戳，0 表示未记录）；仅本地使用，不来自诗库 */
+    private long favoriteAt;
+
     public Poem() {
         this.title = "";
         this.rhythmic = "";
@@ -188,6 +191,15 @@ public class Poem implements Parcelable {
 
     public void setAppreciation(String appreciation) {
         this.appreciation = appreciation == null ? "" : appreciation;
+    }
+
+    /** 收藏时间；未收藏时为 0 */
+    public long getFavoriteAt() {
+        return favoriteAt;
+    }
+
+    public void setFavoriteAt(long favoriteAt) {
+        this.favoriteAt = favoriteAt;
     }
 
     // ---------------------------------------------------------------- 派生字段
@@ -350,6 +362,7 @@ public class Poem implements Parcelable {
         strain = in.readString();
         translation = in.readString();
         appreciation = in.readString();
+        favoriteAt = in.readLong();
     }
 
     @Override
@@ -369,6 +382,7 @@ public class Poem implements Parcelable {
         dest.writeString(strain);
         dest.writeString(translation);
         dest.writeString(appreciation);
+        dest.writeLong(favoriteAt);
     }
 
     @Override

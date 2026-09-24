@@ -3,6 +3,7 @@ package com.example.poetry.ui;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,7 +23,9 @@ import java.util.List;
 /**
  * 音色选择底部弹层（详情页 / 我的页共用）。
  * <p>
- * 音色来自系统 TTS；云端音色待后台接口 {@code ApiConfig.API_VOICES} 接入后补充。
+ * 音色由内置的离线引擎给出，正常情况下是十几个挑了出来的发音人。
+ * 语音包没加载成功时这里是空的，弹层不会假装有音色——底下那行说明会讲清楚
+ * 为什么没有（见 {@code voice_sheet_single} / {@code voice_sheet_empty}）。
  */
 public final class VoiceSheet {
 
@@ -84,6 +87,11 @@ public final class VoiceSheet {
         binding.voiceList.setAdapter(adapter);
 
         View root = binding.getRoot().findViewById(R.id.voiceHint);
+        if (root instanceof TextView) {
+            // 只有一种声音（内置离线引擎就是这种情形）和一种都没有，要说的话不一样
+            ((TextView) root).setText(voices.isEmpty()
+                    ? R.string.voice_sheet_empty : R.string.voice_sheet_single);
+        }
         if (root != null) {
             root.setVisibility(voices.size() > 1 ? View.GONE : View.VISIBLE);
         }

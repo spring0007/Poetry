@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 语音设置页：发音人 / 音调 / 音量 / 引擎切换（对应「我的 · 朗读偏好 → 语音设置」） -->
+<!-- 语音设置页：发音人 / 语速 / 音调 / 音量（对应「我的 · 朗读偏好 → 语音设置」） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/paper"
+    android:background="?android:attr/colorBackground"
     android:orientation="vertical">
 
     <!-- 工具条 -->
@@ -77,21 +78,23 @@
                         android:text="@string/tts_voice_label"
                         android:textAppearance="@style/TextAppearance.Poetry.CardTitle" />
 
+                    <!-- 内容在 refreshEngineState() 里填：都是带 %1$s/%1$d 的格式串，
+                         直接放 android:text 会被当成字面量显示出一个裸的「%1$d」 -->
                     <TextView
                         android:id="@+id/voiceMeta"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/tts_voice_meta"
-                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
-
-                    <TextView
-                        android:id="@+id/engineStatus"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_1"
-                        android:text="@string/tts_engine_status"
-                        android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                        tools:text="15 种可用" />
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/engineStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_1"
+                    android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak"
+                    tools:text="引擎状态 · 内置离线语音就绪 · 15 个音色" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/voiceList"
@@ -201,67 +204,6 @@
                     android:valueFrom="@dimen/tts_volume_min"
                     android:valueTo="@dimen/tts_volume_max" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_2"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/tts_pitch_range"
-                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
-
-                    <TextView
-                        android:id="@+id/pitchRangeValue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/tts_ratio_value"
-                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
-                </LinearLayout>
-
-                <com.google.android.material.slider.Slider
-                    android:id="@+id/pitchRangeSlider"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:stepSize="0.1"
-                    android:value="@dimen/tts_pitchrange_default"
-                    android:valueFrom="@dimen/tts_pitchrange_min"
-                    android:valueTo="@dimen/tts_pitchrange_max" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_2"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/tts_word_gap"
-                        android:textAppearance="@style/TextAppearance.Poetry.Body" />
-
-                    <TextView
-                        android:id="@+id/wordGapValue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/tts_pace_value"
-                        android:textAppearance="@style/TextAppearance.Poetry.Caption" />
-                </LinearLayout>
-
-                <com.google.android.material.slider.Slider
-                    android:id="@+id/wordGapSlider"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:stepSize="1"
-                    android:value="@dimen/tts_wordgap_default"
-                    android:valueFrom="@dimen/tts_wordgap_min"
-                    android:valueTo="@dimen/tts_wordgap_max" />
             </LinearLayout>
 
             <!-- 操作 -->
@@ -289,13 +231,6 @@
                     android:text="@string/tts_reset" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/reloadButton"
-                style="@style/Widget.Poetry.ToolButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_2"
-                android:text="@string/tts_reload_data" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

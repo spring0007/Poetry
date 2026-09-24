@@ -10,8 +10,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.poetry.ui.Skin;
 import com.example.poetry.adapter.PoemCardAdapter;
 import com.example.poetry.data.Callback;
+import com.example.poetry.data.DbStatus;
+import com.example.poetry.data.DbStatusListener;
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.databinding.ActivityPoemListBinding;
@@ -39,6 +42,16 @@ public class PoemListActivity extends AppCompatActivity {
     private PoetryRepository repository;
     private PoemCardAdapter adapter;
 
+    /** 筛选条件提成字段：库热重载后要按同一条件重查一遍。Intent 只在 onCreate 读一次。 */
+    private String mode = MODE_KIND;
+    private String value = "";
+
+    /**
+     * 诗库状态订阅者。Activity 的一生只有一份，在 {@code onCreate} 建、{@code onDestroy} 摘，
+     * 转屏会走完整的销毁重建，不会漏。
+     */
+    private DbStatusListener readyWatcher;
+
     public static void open(@NonNull Context context, @NonNull String title,
                             @NonNull String mode, @NonNull String value) {
         Intent intent = new Intent(context, PoemListActivity.class);
@@ -50,6 +63,7 @@ public class PoemListActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        Skin.apply(this);
         super.onCreate(savedInstanceState);
         binding = ActivityPoemListBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -57,8 +71,10 @@ public class PoemListActivity extends AppCompatActivity {
         repository = PoetryRepository.get(this);
 
         String title = getIntent().getStringExtra(EXTRA_TITLE);
-        String mode = getIntent().getStringExtra(EXTRA_MODE);
-        String value = getIntent().getStringExtra(EXTRA_VALUE);
+        String intentMode = getIntent().getStringExtra(EXTRA_MODE);
+        String intentValue = getIntent().getStringExtra(EXTRA_VALUE);
+        mode = intentMode == null ? MODE_KIND : intentMode;
+        value = intentValue == null ? "" : intentValue;
         binding.listTitle.setText(title == null ? getString(R.string.app_name) : title);
         binding.backButton.setOnClickListener(v -> finish());
 
@@ -79,7 +95,19 @@ public class PoemListActivity extends AppCompatActivity {
         binding.poemList.setLayoutManager(new LinearLayoutManager(this));
         binding.poemList.setAdapter(adapter);
 
-        load(mode == null ? MODE_KIND : mode, value == null ? "" : value);
+        // 注册会立刻回调一次，ReadyWatcher 把第一次算作跃迁，首次加载就由它触发。
+        readyWatcher = new DbStatusListener.ReadyWatcher() {
+            @Override
+            protected void onReadyChanged(boolean ready, @NonNull DbStatus status) {
+                reload();
+            }
+        };
+        repository.addDbStatusListener(readyWatcher);
+    }
+
+    /** 按当前筛选条件重查。{@code adapter.submit()} 是替换语义，重复调用安全。 */
+    private void reload() {
+        load(mode, value);
     }
 
     private void load(@NonNull String mode, @NonNull String value) {
@@ -120,5 +148,15 @@ public class PoemListActivity extends AppCompatActivity {
                 repository.listByKind(value, 60, callback);
                 break;
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        // 摘订阅放在 super 之前：清单里的那次回调不该打在一个正要销毁的 Activity 上。
+        if (readyWatcher != null) {
+            repository.removeDbStatusListener(readyWatcher);
+            readyWatcher = null;
+        }
+        super.onDestroy();
     }
 }

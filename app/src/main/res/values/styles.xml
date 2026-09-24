@@ -13,14 +13,15 @@
         <item name="android:letterSpacing">0.06</item>
     </style>
 
-    <!-- 页面大标题：宋体 30sp -->
+    <!-- 页面大标题：宋体 30sp。中文不用 fake bold，靠字号和字重区分层级 -->
     <style name="TextAppearance.Poetry.PageTitle" parent="TextAppearance.Material3.HeadlineMedium">
         <item name="android:textSize">@dimen/text_xxl</item>
         <item name="android:fontFamily">serif</item>
         <item name="fontFamily">serif</item>
-        <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/ink_900</item>
-        <item name="android:letterSpacing">0.05</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:lineSpacingExtra">2dp</item>
     </style>
 
     <!-- 分区标题：宋体 20sp -->
@@ -67,14 +68,16 @@
         <item name="android:textColor">@color/ink_400</item>
     </style>
 
-    <!-- 诗词正文：宋体 24sp -->
+    <!-- 诗词正文：宋体 24sp。中文不设 fake bold；字距收紧、行距放宽，行气才顺 -->
     <style name="TextAppearance.Poetry.Poem" parent="TextAppearance.Material3.BodyLarge">
         <item name="android:textSize">@dimen/text_xl</item>
         <item name="android:fontFamily">serif</item>
         <item name="fontFamily">serif</item>
         <item name="android:textColor">@color/ink_900</item>
         <item name="android:lineSpacingExtra">@dimen/line_spacing_poem</item>
-        <item name="android:letterSpacing">0.09</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:gravity">center</item>
     </style>
 
     <!-- Hero 标题：宋体 36sp 白色 -->

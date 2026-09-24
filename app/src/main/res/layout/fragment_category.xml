@@ -5,7 +5,7 @@
     android:id="@+id/categoryScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/paper"
+    android:background="?android:attr/colorBackground"
     android:clipToPadding="false"
     android:paddingStart="@dimen/page_margin"
     android:paddingTop="@dimen/space_4"

@@ -13,9 +13,14 @@ import java.util.List;
 /**
  * 语音合成引擎的统一抽象。
  * <p>
- * 当前唯一实现为 {@code EspeakEngine}：项目内置的 espeak-ng（离线、无网络依赖）。
+ * 眼下只有一个实现：{@link SherpaTts}，sherpa-onnx + 随 APK 分发的中文 VITS 模型，
+ * 整条链路跑在本机，不联网、不依赖任何第三方 App。保留这层接口是因为它在跑过七个
+ * 后端之后（见 {@code TTS.md} 的演进表）证明是值得的——换引擎不必动 UI。
+ * <p>
+ * 一个引擎可以带**多个语音包**，每个语音包里有多个发音人；{@link #listVoices()} 把
+ * 它们摊平成一张音色表交给界面，界面不需要知道音色属于哪个包。
  * 上层（详情页朗读条、音色弹层、语音设置页）只依赖本接口，
- * 因此切换或新增引擎不需要改动 UI。
+ * 状态文案由 {@link #statusText} 自己如实描述。
  */
 public interface SpeechEngine {
 
@@ -28,7 +33,7 @@ public interface SpeechEngine {
         void onError(String message);
     }
 
-    /** 引擎是否可用（库 + 数据 + 初始化均成功） */
+    /** 引擎是否可用（模型已加载且至少有一个音色） */
     boolean isReady();
 
     /** 不可用时给用户的说明 */
@@ -37,7 +42,7 @@ public interface SpeechEngine {
 
     void setListener(@Nullable Listener listener);
 
-    /** 可选音色列表；引擎不可用时返回一个占位项，保证 UI 不空白 */
+    /** 可选音色列表；引擎不可用时返回空列表，由 UI 决定怎么引导用户 */
     @NonNull
     List<Voice> listVoices();
 

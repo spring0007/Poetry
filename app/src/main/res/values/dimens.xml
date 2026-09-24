@@ -62,7 +62,7 @@
 
     <!-- 语音设置 -->
     <dimen name="size_voice_list">320dp</dimen>
-    <!-- 语速 / 音调 / 音量 / 语调幅度 / 停顿量程（与 TtsConfig 常量一一对应） -->
+    <!-- 语速 / 音调 / 音量量程（与 TtsConfig 常量一一对应） -->
     <dimen name="tts_rate_min">0.6</dimen>
     <dimen name="tts_rate_max">1.8</dimen>
     <dimen name="tts_rate_default">0.9</dimen>
@@ -72,10 +72,4 @@
     <dimen name="tts_volume_min">0.0</dimen>
     <dimen name="tts_volume_max">1.0</dimen>
     <dimen name="tts_volume_default">0.9</dimen>
-    <dimen name="tts_pitchrange_min">0.5</dimen>
-    <dimen name="tts_pitchrange_max">1.5</dimen>
-    <dimen name="tts_pitchrange_default">1.0</dimen>
-    <dimen name="tts_wordgap_min">0</dimen>
-    <dimen name="tts_wordgap_max">10</dimen>
-    <dimen name="tts_wordgap_default">0</dimen>
 </resources>

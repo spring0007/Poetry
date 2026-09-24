@@ -13,3 +13,17 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# 内置离线语音的依赖（sherpa-onnx AAR + 小雅模型），体积大且可重新下载。
+# 新克隆的仓库要先跑 tools/fetch-tts-deps.sh，否则 :app:assembleDebug 编译不过。
+/app/libs/*.aar
+/app/libs/*.tar.bz2
+/app/src/main/assets/tts/
+
+# 诗库已改成从服务器下载，不再打进 APK。
+# 留在树里的一份（110 MB）只是过渡期的退路，别提交。
+/app/src/main/assets/poetry/*.db
+
+# 上传到服务器的产物：子集库 + version.json。
+# 由 tools/make-subset-db.py 生成，重建一次 sha256 就变，不该进版本库。
+/dist-server/

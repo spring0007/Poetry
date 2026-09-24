@@ -46,4 +46,46 @@
     <!-- ================= 底部导航（夜间） ================= -->
     <color name="nav_checked">@color/color_primary</color>
     <color name="nav_unchecked">@color/ink_400</color>
+
+    <!-- ================= 皮肤（夜间）：与 values/colors.xml 同名，切换日夜自动取用 ================= -->
+
+    <!-- 宣纸（夜间） -->
+    <color name="skin_xuan_paper">#FF141110</color>
+    <color name="skin_xuan_surface">#FF1D1917</color>
+    <color name="skin_xuan_surface_2">#FF2A2422</color>
+    <color name="skin_xuan_primary">#FFFF7A63</color>
+    <color name="skin_xuan_accent">#FF6FC0DE</color>
+    <color name="skin_xuan_line">#FF332B28</color>
+
+    <!-- 青瓷（夜间） -->
+    <color name="skin_qingci_paper">#FF0F1513</color>
+    <color name="skin_qingci_surface">#FF171F1D</color>
+    <color name="skin_qingci_surface_2">#FF212C29</color>
+    <color name="skin_qingci_primary">#FF6FC6B4</color>
+    <color name="skin_qingci_accent">#FFD8A46E</color>
+    <color name="skin_qingci_line">#FF25302D</color>
+
+    <!-- 朱砂（夜间） -->
+    <color name="skin_zhusha_paper">#FF161110</color>
+    <color name="skin_zhusha_surface">#FF1F1817</color>
+    <color name="skin_zhusha_surface_2">#FF2B211F</color>
+    <color name="skin_zhusha_primary">#FFFF8A75</color>
+    <color name="skin_zhusha_accent">#FFD8A46E</color>
+    <color name="skin_zhusha_line">#FF342825</color>
+
+    <!-- 黛蓝（夜间） -->
+    <color name="skin_dailan_paper">#FF101319</color>
+    <color name="skin_dailan_surface">#FF171B23</color>
+    <color name="skin_dailan_surface_2">#FF222834</color>
+    <color name="skin_dailan_primary">#FF8FB0E8</color>
+    <color name="skin_dailan_accent">#FFB3A6EA</color>
+    <color name="skin_dailan_line">#FF262D3A</color>
+
+    <!-- 墨韵（夜间） -->
+    <color name="skin_moyu_paper">#FF101010</color>
+    <color name="skin_moyu_surface">#FF1A1A1A</color>
+    <color name="skin_moyu_surface_2">#FF262626</color>
+    <color name="skin_moyu_primary">#FFE8E6E1</color>
+    <color name="skin_moyu_accent">#FFA8A29A</color>
+    <color name="skin_moyu_line">#FF2E2E2E</color>
 </resources>

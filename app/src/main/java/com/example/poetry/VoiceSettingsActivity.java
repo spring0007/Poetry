@@ -3,8 +3,6 @@ package com.example.poetry;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -12,31 +10,33 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.poetry.ui.Skin;
 import com.example.poetry.adapter.VoiceAdapter;
-import com.example.poetry.data.AppExecutors;
 import com.example.poetry.data.local.UserStore;
 import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.databinding.ActivityVoiceSettingsBinding;
 import com.example.poetry.media.Speaker;
-import com.example.poetry.tts.EspeakData;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * 语音设置页：朗读引擎、发音人、语速、音调、音量。
+ * 语音设置页：发音人、语速、音调、音量，外加引擎本身的状态。
+ * <p>
+ * 合成不依赖任何外部程序——语音模型随 APK 分发，装在应用里（见 {@code media.SherpaTts}）。
+ * 所以这一页没有「去装个引擎」「去导入语音包」这类出口，只需要把「引擎起来了没有」
+ * 讲清楚：模型加载是异步的，用户可能在本页刚打开时就看到状态。
  * <p>
  * 所有改动立即写入 {@link UserStore}（单份 JSON 快照），下次启动自动恢复；
- * 同时立即下发给当前引擎，便于当场试听。
+ * 同时立即下发给引擎，便于当场试听。
  */
 public class VoiceSettingsActivity extends AppCompatActivity {
 
     private ActivityVoiceSettingsBinding binding;
     private UserStore store;
     private TtsConfig config;
-    private final Handler handler = new Handler(Looper.getMainLooper());
     private VoiceAdapter adapter;
     private final List<Voice> voices = new ArrayList<>();
     private boolean testing;
@@ -47,6 +47,7 @@ public class VoiceSettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        Skin.apply(this);
         super.onCreate(savedInstanceState);
         binding = ActivityVoiceSettingsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -62,7 +63,7 @@ public class VoiceSettingsActivity extends AppCompatActivity {
         Speaker.get().setListener(new Speaker.Listener() {
             @Override
             public void onStart() {
-                // ignore
+                // 合成中：保持「停止」按钮可用
             }
 
             @Override
@@ -77,8 +78,15 @@ public class VoiceSettingsActivity extends AppCompatActivity {
             }
         });
 
-        // espeak 是异步准备的，就绪后刷新状态与音色列表
-        Speaker.get().prepare(this, this::refreshEngineState);
+        Speaker.get().prepare(this, this::onEngineReady);
+        refreshEngineState();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 引擎可能是离开这段时间里加载完的（首启时加载要好几秒），回来再对一次状态
+        Speaker.get().prepare(this, this::onEngineReady);
         refreshEngineState();
     }
 
@@ -105,18 +113,28 @@ public class VoiceSettingsActivity extends AppCompatActivity {
     private void reloadVoices() {
         voices.clear();
         voices.addAll(Speaker.get().listVoices());
-        String saved = config.getVoiceId();
+        // 引擎是音色的唯一权威。存着的老 id（例如只有小雅那个年代的 sherpa-xiao-ya）
+        // 或者换过语音包之后不存在的音色，都会被引擎归一成默认发音人——这里跟着它走，
+        // 保证界面上打勾的那个就是实际会发声的那个
+        String current = Speaker.get().currentVoiceId();
+        if (current == null || current.isEmpty()) {
+            current = config.getVoiceId();
+        }
         boolean matched = false;
         for (Voice voice : voices) {
-            boolean selected = voice.getId().equals(saved);
+            boolean selected = voice.getId().equals(current);
             voice.setSelected(selected);
             if (selected) {
                 matched = true;
             }
         }
         if (!matched && !voices.isEmpty()) {
+            // 音色表整个对不上（例如换了语音包）：落到第一个，用户不用自己去理解这个落差
             voices.get(0).setSelected(true);
-            config.setVoiceId(voices.get(0).getId());
+            current = voices.get(0).getId();
+        }
+        if (current != null && !current.isEmpty() && !current.equals(config.getVoiceId())) {
+            config.setVoiceId(current);
             persist();
         }
         adapter.submit(voices);
@@ -136,6 +154,11 @@ public class VoiceSettingsActivity extends AppCompatActivity {
 
     // ------------------------------------------------------------------ 引擎状态
 
+    private void onEngineReady() {
+        refreshEngineState();
+        reloadVoices();
+    }
+
     private void refreshEngineState() {
         String status = Speaker.get().statusText(this);
         binding.engineStatus.setText(getString(R.string.tts_engine_status, status));
@@ -147,8 +170,6 @@ public class VoiceSettingsActivity extends AppCompatActivity {
         binding.rateSlider.setValue(config.getRate());
         binding.pitchSlider.setValue(config.getPitch());
         binding.volumeSlider.setValue(config.getVolume());
-        binding.pitchRangeSlider.setValue(config.getPitchRange());
-        binding.wordGapSlider.setValue((float) config.getWordGap());
         updateValueLabels();
 
         binding.rateSlider.addOnChangeListener((slider, value, fromUser) -> {
@@ -166,16 +187,6 @@ public class VoiceSettingsActivity extends AppCompatActivity {
             updateValueLabels();
             persistAndApply();
         });
-        binding.pitchRangeSlider.addOnChangeListener((slider, value, fromUser) -> {
-            config.setPitchRange(value);
-            updateValueLabels();
-            persistAndApply();
-        });
-        binding.wordGapSlider.addOnChangeListener((slider, value, fromUser) -> {
-            config.setWordGap(Math.round(value));
-            updateValueLabels();
-            persistAndApply();
-        });
     }
 
     private void updateValueLabels() {
@@ -185,10 +196,6 @@ public class VoiceSettingsActivity extends AppCompatActivity {
                 getString(R.string.tts_ratio_value), config.getPitch()));
         binding.volumeValue.setText(String.format(Locale.CHINA,
                 getString(R.string.tts_percent_value), Math.round(config.getVolume() * 100)));
-        binding.pitchRangeValue.setText(String.format(Locale.CHINA,
-                getString(R.string.tts_ratio_value), config.getPitchRange()));
-        binding.wordGapValue.setText(String.format(Locale.CHINA,
-                getString(R.string.tts_pace_value), config.getWordGap()));
     }
 
     // ------------------------------------------------------------------ 操作
@@ -210,16 +217,12 @@ public class VoiceSettingsActivity extends AppCompatActivity {
             applyConfigToUi();
             Toast.makeText(this, R.string.tts_reset_done, Toast.LENGTH_SHORT).show();
         });
-
-        binding.reloadButton.setOnClickListener(v -> reloadData());
     }
 
     private void applyConfigToUi() {
         binding.rateSlider.setValue(config.getRate());
         binding.pitchSlider.setValue(config.getPitch());
         binding.volumeSlider.setValue(config.getVolume());
-        binding.pitchRangeSlider.setValue(config.getPitchRange());
-        binding.wordGapSlider.setValue((float) config.getWordGap());
         updateValueLabels();
         refreshEngineState();
         reloadVoices();
@@ -236,20 +239,6 @@ public class VoiceSettingsActivity extends AppCompatActivity {
         binding.testButton.setText(value ? R.string.tts_stop : R.string.tts_test);
     }
 
-    /** 清空并重新释放 espeak-ng-data（排查数据损坏时用） */
-    private void reloadData() {
-        Toast.makeText(this, R.string.tts_status_preparing, Toast.LENGTH_SHORT).show();
-        AppExecutors.get().io(() -> {
-            EspeakData.clearInternal(this);
-            boolean ok = EspeakData.ensureInstalled(this) != null;
-            AppExecutors.get().main(() -> {
-                Toast.makeText(this, ok ? R.string.tts_reload_done : R.string.tts_reload_failed,
-                        Toast.LENGTH_SHORT).show();
-                Speaker.get().prepare(this, this::refreshEngineState);
-            });
-        });
-    }
-
     private void persistAndApply() {
         persist();
         Speaker.get().apply(config);
@@ -262,7 +251,6 @@ public class VoiceSettingsActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        handler.removeCallbacksAndMessages(null);
         Speaker.get().stop();
         Speaker.get().setListener(null);
         binding = null;

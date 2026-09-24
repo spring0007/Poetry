@@ -57,10 +57,80 @@ public final class DatabaseProvider {
     }
 
     /**
+     * 下载安装的落地路径。**必须解析，不能写死**：{@code locate()} 的查找顺序是
+     * 外部目录 → 私有目录 → assets，外部目录优先级最高，所以开发时 adb push 过去的那份
+     * 才盖得住下载来的那份。若把安装目标写死成私有目录，adb push 就永远不生效了。
+     *
+     * <p>已经有一份就原地替换；一份都没有时落在**私有目录**——{@code getExternalFilesDir()}
+     * 可能返回 null，而且外部目录会被下一次 adb push 覆盖，那正是开发时想要的行为。
+     */
+    @NonNull
+    public static File installTarget(@NonNull Context context, @NonNull String fileName) {
+        // 用 locateExisting 而不是 locate：后者在两边都没有时会去拷 assets。
+        // 下载路径上绝不能因为「先问一下装哪儿」就把 110 MB 从 assets 抄一遍。
+        File existing = locateExisting(context, fileName);
+        if (existing != null) {
+            return existing;
+        }
+        return new File(new File(context.getFilesDir(), DIR_NAME), fileName);
+    }
+
+    /**
+     * 下载中的临时文件。**必须与目标同目录**：{@code rename(2)} 只在同一个文件系统内才是
+     * 原子的，跨卷的 rename 会退化成「拷贝 + 删除」，中途失败就留下半个文件。
+     *
+     * <p>名字里带 sha8 是为了让「上次下到一半、这次服务端换了版本」这种情形自动失效：
+     * sha 变了就是另一个文件名，旧的会被 {@link #gcStaleParts} 收走。
+     */
+    @NonNull
+    public static File partFile(@NonNull File target, @NonNull String sha8) {
+        return new File(target.getParentFile(), target.getName() + "." + sha8 + ".part");
+    }
+
+    /**
+     * 清掉目标目录下所有 sha 不匹配的 {@code *.part}。中断的下载会留下这些文件，
+     * 而它们永远不会再被用上——sha 相同的那一个才是能续传的。
+     */
+    public static void gcStaleParts(@NonNull File target, @NonNull String keepSha8) {
+        File dir = target.getParentFile();
+        if (dir == null || !dir.isDirectory()) {
+            return;
+        }
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        String prefix = target.getName() + ".";
+        String keepName = partFile(target, keepSha8).getName();
+        for (File file : files) {
+            String name = file.getName();
+            if (!name.startsWith(prefix) || !name.endsWith(".part") || name.equals(keepName)) {
+                continue;
+            }
+            if (file.delete()) {
+                Log.i(TAG, "gc stale part " + name);
+            }
+        }
+    }
+
+    /**
      * 查找可用的数据库文件；找不到返回 null。
      */
     @Nullable
     public static File locate(@NonNull Context context, @NonNull String fileName) {
+        File existing = locateExisting(context, fileName);
+        if (existing != null) {
+            return existing;
+        }
+        // 3. assets（首次自动复制）
+        return copyFromAssets(context, fileName);
+    }
+
+    /**
+     * 只在前两个位置找，**不碰 assets**——没有副作用，可以在「问一句装哪儿」时放心调用。
+     */
+    @Nullable
+    private static File locateExisting(@NonNull Context context, @NonNull String fileName) {
         // 1. 应用专属外部目录
         File external = context.getExternalFilesDir(null);
         if (external != null) {
@@ -73,11 +143,6 @@ public final class DatabaseProvider {
         File internal = new File(new File(context.getFilesDir(), DIR_NAME), fileName);
         if (internal.exists() && internal.length() > 0) {
             return internal;
-        }
-        // 3. assets（首次自动复制）
-        File copied = copyFromAssets(context, fileName);
-        if (copied != null) {
-            return copied;
         }
         return null;
     }
@@ -99,26 +164,43 @@ public final class DatabaseProvider {
         }
         InputStream in = null;
         OutputStream out = null;
+        // Copy to a temporary file and rename at the end. If the app is killed mid-copy
+        // (users do swipe a frozen cold start away), the real path stays nonexistent and
+        // the next launch retries cleanly instead of opening a truncated database.
+        File temp = new File(dir, fileName + ".part");
         try {
             in = context.getAssets().open(ASSET_DIR + "/" + fileName);
             if (!dir.exists() && !dir.mkdirs()) {
                 return null;
             }
-            out = new FileOutputStream(target);
+            if (temp.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                temp.delete();
+            }
+            out = new FileOutputStream(temp);
             byte[] buffer = new byte[64 * 1024];
             int read;
             while ((read = in.read(buffer)) > 0) {
                 out.write(buffer, 0, read);
             }
             out.flush();
+            try {
+                out.close();
+            } catch (IOException ignored) {
+                // handled below
+            }
+            out = null;
+            if (!temp.renameTo(target)) {
+                throw new IOException("rename failed: " + temp);
+            }
             pref.edit().putBoolean(KEY_COPIED + fileName, true).apply();
             Log.i(TAG, "copied " + fileName + " from assets -> " + target.getAbsolutePath());
             return target;
         } catch (IOException e) {
             Log.w(TAG, "no bundled " + fileName + " in assets");
-            if (target.exists()) {
+            if (temp.exists()) {
                 //noinspection ResultOfMethodCallIgnored
-                target.delete();
+                temp.delete();
             }
             return null;
         } finally {

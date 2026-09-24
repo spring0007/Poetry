@@ -53,4 +53,47 @@
     <!-- ================= 底部导航选中/未选中 ================= -->
     <color name="nav_checked">@color/color_primary</color>
     <color name="nav_unchecked">@color/ink_400</color>
+
+    <!-- ================= 皮肤：每套 6 个色（纸底 / 卡片 / 次级卡片 / 主色 / 强调 / 描边） =================
+         夜间版本在 values-night/colors.xml 里同名定义，切换日夜时自动取用。 -->
+
+    <!-- 宣纸：暖白纸 + 朱红（默认） -->
+    <color name="skin_xuan_paper">#FFFDFBF4</color>
+    <color name="skin_xuan_surface">#FFFFFDF9</color>
+    <color name="skin_xuan_surface_2">#FFF8F3E8</color>
+    <color name="skin_xuan_primary">#FFE04A2F</color>
+    <color name="skin_xuan_accent">#FF3D86A8</color>
+    <color name="skin_xuan_line">#FFE6DFD8</color>
+
+    <!-- 青瓷：青白纸 + 石青竹绿 -->
+    <color name="skin_qingci_paper">#FFF1F6F4</color>
+    <color name="skin_qingci_surface">#FFFAFDFC</color>
+    <color name="skin_qingci_surface_2">#FFE4EFEA</color>
+    <color name="skin_qingci_primary">#FF2F7D6E</color>
+    <color name="skin_qingci_accent">#FFC08552</color>
+    <color name="skin_qingci_line">#FFD9E6E1</color>
+
+    <!-- 朱砂：米黄纸 + 深朱 -->
+    <color name="skin_zhusha_paper">#FFFDF5EE</color>
+    <color name="skin_zhusha_surface">#FFFFFCF8</color>
+    <color name="skin_zhusha_surface_2">#FFF7E7DA</color>
+    <color name="skin_zhusha_primary">#FFC0392B</color>
+    <color name="skin_zhusha_accent">#FFA8763E</color>
+    <color name="skin_zhusha_line">#FFEBD9CB</color>
+
+    <!-- 黛蓝：冷灰蓝纸 + 黛蓝 -->
+    <color name="skin_dailan_paper">#FFF2F5FA</color>
+    <color name="skin_dailan_surface">#FFFBFCFE</color>
+    <color name="skin_dailan_surface_2">#FFE4EAF3</color>
+    <color name="skin_dailan_primary">#FF3B5B8C</color>
+    <color name="skin_dailan_accent">#FF7A6BB5</color>
+    <color name="skin_dailan_line">#FFDAE2EE</color>
+
+    <!-- 墨韵：素白纸 + 墨黑（极简） -->
+    <color name="skin_moyu_paper">#FFF7F7F5</color>
+    <color name="skin_moyu_surface">#FFFFFFFF</color>
+    <color name="skin_moyu_surface_2">#FFECECEA</color>
+    <color name="skin_moyu_primary">#FF2A211C</color>
+    <color name="skin_moyu_accent">#FF6D625B</color>
+    <color name="skin_moyu_line">#FFDFDFDC</color>
 </resources>

@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.poetry.data.local.DatabaseProvider;
+import com.example.poetry.data.local.DbInstaller;
 import com.example.poetry.data.local.PoetryDatabase;
 import com.example.poetry.data.local.SeedDataSource;
 import com.example.poetry.data.local.UserStore;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 统一数据入口（离线优先）。
@@ -45,11 +47,32 @@ public final class PoetryRepository {
     private final UserStore store;
     private final PoetryApi remote;
 
+    /** 诗库状态的订阅者。CopyOnWrite 是因为投递时可能有人正在 onDestroyView 里摘自己。 */
+    private final CopyOnWriteArrayList<DbStatusListener> dbListeners = new CopyOnWriteArrayList<>();
+
+    /** 最近一次发布的快照。注册时会立刻拿到它，所以它必须在任何一次注册之前就有值。 */
+    private volatile DbStatus dbStatus = DbStatus.idle(false, false);
+
+    /** 下载安装状态机。应用级单例，这里只是把它的事件转成 {@link DbStatus} 往外发。 */
+    private final DbInstaller installer;
+
+    /**
+     * 把 {@code DbInstaller} 的事件转给本仓库的订阅者。
+     *
+     * <p>转发是**直接转**：{@code DbInstaller} 造快照时已经问过库了，这里再包一层
+     * 只会多一次字段读取和一层可能出错的翻译。
+     */
+    private final DbInstaller.Listener installerBridge = this::publish;
+
     private PoetryRepository(@NonNull Context context) {
         this.context = context.getApplicationContext();
         this.database = PoetryDatabase.get(this.context);
         this.store = UserStore.get(this.context);
         this.remote = new RemotePoetrySource();
+        this.installer = DbInstaller.get(this.context);
+        // 注册即回调一次当前状态，所以 dbStatus 在这之后就反映真实情况了，
+        // 不必等第一次查询的 publishReadiness。
+        this.installer.addListener(installerBridge);
     }
 
     public static PoetryRepository get(@NonNull Context context) {
@@ -65,9 +88,115 @@ public final class PoetryRepository {
 
     // ------------------------------------------------------------ 状态
 
-    /** 本地全量诗库是否可用 */
+    /**
+     * 本地全量诗库是否可用。
+     *
+     * <p>只读判断，不会去打开数据库：打开可能要先把 56 MB 从 assets 拷到内部存储，
+     * 而这方法会在主线程被调用。真正接通数据库的事交给 {@code ensureOpen()}，
+     * 它在每次查询前的 IO 线程里执行。
+     *
+     * <p>注意这是「此刻开着吗」而不是「该不该显示本地库」——界面想知道后者，
+     * 应该订阅 {@link #addDbStatusListener}，因为库是下载下来之后才可用的。
+     */
     public boolean isLocalReady() {
         return database.isReady();
+    }
+
+    /**
+     * 同上，但会先尝试接通数据库，结果在主线程返回——供「我的」页显示真实数据状态用。
+     */
+    public void localState(@NonNull Callback<Boolean> callback) {
+        AppExecutors.get().io(() -> {
+            database.ensureOpen();
+            boolean localReady = database.isReady();
+            AppExecutors.get().main(() -> callback.onData(localReady));
+        });
+    }
+
+    // ------------------------------------------------------------ 诗库状态订阅
+
+    /**
+     * 订阅诗库状态变化。**注册时会立刻收到一次当前状态**，界面因此不需要在
+     * {@code onViewCreated} 里额外查一遍。
+     *
+     * <p>只放在 {@code onViewCreated} / {@code onCreate} 里，别放进会被 {@code onResume}
+     * 重复调用的 {@code setupX()}——那样每转一次屏泄漏一个监听器。
+     */
+    public void addDbStatusListener(@NonNull DbStatusListener listener) {
+        dbListeners.addIfAbsent(listener);
+        publish(listener, dbStatus);
+    }
+
+    /** 与 {@link #addDbStatusListener} 严格配对，放 {@code onDestroyView} / {@code onDestroy}。 */
+    public void removeDbStatusListener(@NonNull DbStatusListener listener) {
+        dbListeners.remove(listener);
+    }
+
+    /** 当前状态快照。不碰磁盘，可以在主线程随便调。 */
+    @NonNull
+    public DbStatus dbStatus() {
+        return dbStatus;
+    }
+
+    /**
+     * 去服务器问一下有没有新诗库。
+     *
+     * @param force  true = 绕过节流（「关于」页那个按钮）
+     * @param result 可空。{@code onData(true)} = 已是最新，{@code onData(false)} = 有新版可下。
+     *               无论哪种，界面都会先通过 {@link #addDbStatusListener} 收到状态变化。
+     */
+    public void checkForDbUpdate(boolean force, @Nullable Callback<Boolean> result) {
+        installer.checkForUpdate(force, result);
+    }
+
+    /**
+     * 开始下载并安装诗库。
+     *
+     * <p>不受界面生命周期影响——这是应用级操作，切个标签页不该把它掐掉。
+     * 只有 {@link #cancelDbDownload()} 或用户点「取消」能停下它。
+     */
+    public void startDbDownload() {
+        installer.startDownload();
+    }
+
+    /** 取消下载。碎片保留在磁盘上，下次续传。 */
+    public void cancelDbDownload() {
+        installer.cancelDownload();
+    }
+
+    /**
+     * 发布新状态：先记下来（后注册的人立刻能拿到），再投给所有订阅者。
+     *
+     * <p>投递统一走 {@code AppExecutors.main}：状态可能来自下载线程，而订阅者全是界面。
+     * 已经在主线程时它是内联执行，不会多绕一圈消息队列。
+     */
+    private void publish(@NonNull final DbStatus status) {
+        dbStatus = status;
+        for (DbStatusListener listener : dbListeners) {
+            publish(listener, status);
+        }
+    }
+
+    private void publish(@NonNull final DbStatusListener listener, @NonNull final DbStatus status) {
+        AppExecutors.get().main(() -> listener.onDbStatus(status));
+    }
+
+    /**
+     * 由 IO 线程调用：库刚被打开（或发现打不开）时把「能用了」这件事广播出去。
+     *
+     * <p>下载/安装进行中时直接跳过，那种时候状态由 {@code DbInstaller} 说了算——它会带着
+     * 更新后的标志位再发一次。不跳过的话，安装途中的一次查询就可能把 DOWNLOADING 冲成 IDLE，
+     * 界面上的进度条会莫名其妙消失。
+     */
+    private void publishReadiness(boolean localReady, boolean hasFile) {
+        DbStatus current = dbStatus;
+        if (current.busy()) {
+            return;
+        }
+        if (current.localReady == localReady && current.hasFile == hasFile) {
+            return;   // 没变化就别打扰界面，否则每次查询都会触发一轮重绘
+        }
+        publish(DbStatus.idle(localReady, hasFile));
     }
 
     /** 平仄库是否可用 */
@@ -304,11 +433,21 @@ public final class PoetryRepository {
         return store.getHistory();
     }
 
+    public void removeHistory(long poemId) {
+        store.removeHistory(poemId);
+    }
+
     // ------------------------------------------------------------ 线程封装
 
     private <T> void run(@NonNull Callable<T> task, @NonNull Callback<T> callback) {
         AppExecutors.get().io(() -> {
             try {
+                // Pick up the database once the background warm-up has copied it out of
+                // the assets. Safe here: this is the IO thread, never the main one.
+                database.ensureOpen();
+                // 每一次查询都是一次「库现在能用了吗」的顺带检查：首次查询会把库打开，
+                // 下载装好后的一次 reload() 也会在这里被下一轮查询确认。状态真的变了才广播。
+                publishReadiness(database.isReady(), database.filePresent());
                 T data = task.call();
                 AppExecutors.get().main(() -> {
                     if (data != null) {

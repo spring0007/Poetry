@@ -17,15 +17,25 @@ import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.fragment.app.Fragment;
 
+import com.example.poetry.AboutActivity;
+import com.example.poetry.HistoryActivity;
+import com.example.poetry.ProfileActivity;
+import com.example.poetry.SkinActivity;
 import com.example.poetry.R;
 import com.example.poetry.VoiceSettingsActivity;
+import com.example.poetry.data.DbStatus;
+import com.example.poetry.data.DbStatusListener;
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.local.UserStore;
 import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.databinding.FragmentMineBinding;
+import com.example.poetry.ui.Skin;
 import com.example.poetry.media.Speaker;
 import com.example.poetry.ui.VoiceSheet;
+
+import java.util.List;
+import java.util.Locale;
 
 /**
  * 我的页：资料卡 + 统计 + 打卡 + 朗读偏好 + 成就 + 更多 + 数据状态。
@@ -38,6 +48,24 @@ public class MineFragment extends Fragment {
     private FragmentMineBinding binding;
     private PoetryRepository repository;
     private UserStore store;
+
+    /**
+     * 诗库状态订阅者，**每个视图一份**，在 {@code onViewCreated} 里新建。
+     *
+     * <p>用的是**裸的** {@link DbStatusListener} 而不是 {@link DbStatusListener.ReadyWatcher}：
+     * 这一行要显示的就是整个状态机（检查中 / 下载中 n% / 校验中 / 失败原因），而 ReadyWatcher
+     * 只在 {@code localReady} 翻面时才回调——下载进度根本不会动。
+     *
+     * <p>每个事件都重渲染是划算的：这里只是几次 {@code setText}。真正贵的是重新查询列表，
+     * 那件事在四个列表页里，那些界面用的才是 ReadyWatcher。
+     */
+    private DbStatusListener statusWatcher;
+
+    /**
+     * 最近一次渲染的状态，只为点击时判分支。**不参与显示**——显示的永远是最新事件。
+     */
+    @Nullable
+    private DbStatus lastStatus;
 
     @Nullable
     @Override
@@ -55,34 +83,68 @@ public class MineFragment extends Fragment {
 
         setupProfile();
         setupStats();
+        setupCheckin();
         setupPreferences();
         setupBadges();
         setupMore();
-        setupData();
+        bindData();
+
+        // 注册会立刻回调一次当前状态，「诗库状态」行的首次取值就由这次回调完成。
+        // 注册点必须是 onViewCreated 而不是 bindData()：后者虽然目前也只在
+        // onViewCreated 里跑，但名字上它是「渲染」，以后一旦挪进 onResume 就会漏监听器。
+        statusWatcher = this::renderDbStatus;
+        repository.addDbStatusListener(statusWatcher);
     }
 
     // ---------------------------------------------------------------- 资料
 
     private void setupProfile() {
-        binding.profileName.setText(R.string.me_nickname);
-        binding.profileAvatar.setText(getString(R.string.me_nickname).substring(0, 1));
+        String nickname = store.getNickname();
+        String shown = nickname.isEmpty() ? getString(R.string.me_nickname) : nickname;
+        binding.profileName.setText(shown);
+
+        String avatar = store.getAvatar();
+        if (avatar.isEmpty()) {
+            avatar = shown.substring(0, 1);
+        }
+        binding.profileAvatar.setText(avatar);
         binding.profileId.setText(R.string.me_id);
-        binding.profileLevel.setText(R.string.me_level);
-        binding.profileEdit.setOnClickListener(v ->
-                Toast.makeText(requireContext(), R.string.toast_edit_profile, Toast.LENGTH_SHORT).show());
+        String signature = store.getSignature();
+        binding.profileLevel.setText(signature.isEmpty()
+                ? getString(R.string.me_level) : signature);
+
+        View.OnClickListener edit = v -> ProfileActivity.open(requireContext());
+        binding.profileEdit.setOnClickListener(edit);
+        binding.profileAvatar.setOnClickListener(edit);
     }
 
     private void setupStats() {
         int favorites = repository.favorites().size();
-        int days = store.getCheckinDays();
         binding.statFav.setText(String.valueOf(favorites));
-        binding.statHours.setText(String.format(java.util.Locale.CHINA, "%.1f", store.getReadHours()));
-        binding.statDays.setText(String.valueOf(days));
+        binding.statHours.setText(String.format(Locale.CHINA, "%.1f",
+                store.getReadHours()));
+        binding.statDays.setText(String.valueOf(store.getCheckinStreak()));
+    }
 
+    /**
+     * 本周打卡：周一到周日七个点，按真实日期点亮；今日未打卡时按钮可点。
+     */
+    private void setupCheckin() {
+        List<Boolean> week = store.getWeekCheckins();
+        String[] weekdays = getResources().getStringArray(R.array.weekday_labels);
+        boolean today = store.isCheckedInToday();
+        int streak = store.getCheckinStreak();
+
+        binding.checkinStreak.setText(getString(R.string.me_checkin_streak, streak));
         binding.checkinDots.removeAllViews();
         int dotSize = getResources().getDimensionPixelSize(R.dimen.size_checkin_dot);
         int gap = getResources().getDimensionPixelSize(R.dimen.space_2);
+        int done = 0;
         for (int i = 0; i < TOTAL_CHECKIN; i++) {
+            boolean checked = i < week.size() && week.get(i);
+            if (checked) {
+                done++;
+            }
             TextView dot = new TextView(requireContext());
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dotSize, dotSize);
             lp.weight = 1f;
@@ -93,9 +155,8 @@ public class MineFragment extends Fragment {
             dot.setLayoutParams(lp);
             dot.setBackgroundResource(R.drawable.bg_circle);
             dot.setGravity(Gravity.CENTER);
-            dot.setText(String.valueOf(i + 1));
+            dot.setText(weekdays[i]);
             dot.setTextAppearance(R.style.TextAppearance_Poetry_Caption);
-            boolean checked = i < days;
             ViewCompat.setBackgroundTintList(dot, ColorStateList.valueOf(
                     ContextCompat.getColor(requireContext(),
                             checked ? R.color.color_primary : R.color.surface_3)));
@@ -103,7 +164,30 @@ public class MineFragment extends Fragment {
                     checked ? R.color.on_primary : R.color.ink_400));
             binding.checkinDots.addView(dot);
         }
-        binding.checkinMeta.setText(getString(R.string.me_checkin_meta, days, TOTAL_CHECKIN));
+        binding.checkinMeta.setText(getString(R.string.me_checkin_meta, done, TOTAL_CHECKIN));
+
+        binding.checkinButton.setText(today ? R.string.me_checkin_done
+                : R.string.me_checkin_today);
+        binding.checkinButton.setEnabled(!today);
+        binding.checkinButton.setAlpha(today ? 0.6f : 1f);
+        binding.checkinButton.setOnClickListener(v -> {
+            if (store.checkIn()) {
+                Toast.makeText(requireContext(),
+                        getString(R.string.me_checkin_toast, store.getCheckinStreak()),
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(requireContext(), R.string.me_checkin_repeat,
+                        Toast.LENGTH_SHORT).show();
+            }
+            refreshStats();
+        });
+    }
+
+    /** 打卡 / 收藏变化后统一刷新统计区 */
+    private void refreshStats() {
+        setupStats();
+        setupCheckin();
+        setupBadges();
     }
 
     // ---------------------------------------------------------------- 朗读偏好
@@ -169,6 +253,21 @@ public class MineFragment extends Fragment {
                     ? AppCompatDelegate.MODE_NIGHT_YES
                     : AppCompatDelegate.MODE_NIGHT_NO);
         });
+
+        // 自动朗读
+        binding.rowAutoPlay.switchTitle.setText(R.string.pref_auto_play);
+        binding.rowAutoPlay.switchSub.setText(R.string.pref_auto_play_sub);
+        binding.rowAutoPlay.switchControl.setChecked(store.isAutoPlay());
+        binding.rowAutoPlay.switchControl.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> store.setAutoPlay(isChecked));
+
+        // 连续朗读
+        binding.rowContinuous.switchTitle.setText(R.string.pref_continuous);
+        binding.rowContinuous.switchSub.setText(R.string.pref_continuous_sub);
+        binding.rowContinuous.switchControl.setChecked(store.isContinuousPlay());
+        binding.rowContinuous.switchControl.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> store.setContinuousPlay(isChecked));
+
     }
 
     /** 「语音设置」行摘要：发音人 + 语速 */
@@ -181,16 +280,19 @@ public class MineFragment extends Fragment {
 
     @NonNull
     private String currentVoiceName() {
-        String saved = store.getTtsConfig().getVoiceId();
-        if (saved.isEmpty()) {
-            return getString(R.string.voice_default_name);
+        // 引擎归一之后的 id 才是实际会发声的那个：存着的老 id（例如旧版留下的
+        // sherpa-xiao-ya）和这次没通过核对的音色都会被它落到默认发音人上
+        String saved = Speaker.get().currentVoiceId();
+        if (saved == null || saved.isEmpty()) {
+            saved = store.getTtsConfig().getVoiceId();
         }
         for (Voice voice : Speaker.get().listVoices()) {
             if (voice.getId().equals(saved)) {
                 return voice.getName();
             }
         }
-        return saved;
+        // 找不到就别把内部 id 当名字显示出来
+        return getString(R.string.voice_default_name);
     }
 
     private void applyFont(float scale, @NonNull String label) {
@@ -271,12 +373,19 @@ public class MineFragment extends Fragment {
         bindRow(binding.rowSkin, R.string.more_skin, R.string.more_skin_sub);
         bindRow(binding.rowAbout, R.string.more_about, R.string.more_about_sub);
 
-        View.OnClickListener pending = v -> Toast.makeText(requireContext(),
-                getString(R.string.toast_not_ready, ""), Toast.LENGTH_SHORT).show();
-        binding.rowHistory.getRoot().setOnClickListener(pending);
-        binding.rowDownload.getRoot().setOnClickListener(pending);
-        binding.rowSkin.getRoot().setOnClickListener(pending);
-        binding.rowAbout.getRoot().setOnClickListener(pending);
+        binding.rowHistory.rowValue.setText(getString(R.string.more_history_count,
+                repository.history().size()));
+        binding.rowSkin.rowValue.setText(Skin.nameOf(store.getSkinId()));
+        binding.rowAbout.rowValue.setText(R.string.more_about_sub);
+
+        binding.rowHistory.getRoot().setOnClickListener(v ->
+                HistoryActivity.open(requireContext()));
+        binding.rowDownload.getRoot().setOnClickListener(v ->
+                VoiceSettingsActivity.open(requireContext()));
+        binding.rowSkin.getRoot().setOnClickListener(v ->
+                SkinActivity.open(requireContext()));
+        binding.rowAbout.getRoot().setOnClickListener(v ->
+                AboutActivity.open(requireContext()));
     }
 
     private void bindRow(@NonNull com.example.poetry.databinding.ViewSettingsRowBinding row,
@@ -286,28 +395,161 @@ public class MineFragment extends Fragment {
         row.rowValue.setText("");
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        // 从资料页 / 历史页返回后，昵称、收藏数与打卡状态都可能变了
+        if (binding != null) {
+            setupProfile();
+            refreshStats();
+            setupMore();
+        }
+    }
+
     // ---------------------------------------------------------------- 数据状态
 
-    private void setupData() {
+    /** 只搭架子：分组标题、行标题、点击事件。渲染归 {@link #renderDbStatus}。 */
+    private void bindData() {
         binding.dataHeader.sectionTitle.setText(R.string.mine_data_group);
         binding.dataHeader.sectionMeta.setText("");
 
-        boolean ready = repository.isLocalReady();
         binding.rowDataSource.rowTitle.setText(R.string.mine_data_source);
-        binding.rowDataSource.rowValue.setText(ready
-                ? R.string.mine_data_ready : R.string.mine_data_seed);
-        binding.rowDataSource.rowSub.setText(getString(R.string.data_source_label,
-                repository.sourceLabel()));
-        binding.rowDataSource.getRoot().setOnClickListener(v -> Toast.makeText(requireContext(),
-                getString(R.string.data_db_hint, repository.recommendDbDir()),
-                Toast.LENGTH_LONG).show());
-
+        binding.rowDataSource.getRoot().setOnClickListener(v -> onDataRowClick());
         binding.dbHint.setText(getString(R.string.data_db_hint, repository.recommendDbDir()));
+    }
+
+    /**
+     * 点「诗库状态」行。动作完全由当前状态决定——这行既是展示也是唯一的入口，
+     * 所以本轮没有单独的开始/取消按钮。
+     */
+    private void onDataRowClick() {
+        DbStatus status = lastStatus;
+        if (status == null) {
+            // 还没收到过任何事件（理论上不会：注册时必回调一次），退回问仓库要快照
+            status = repository.dbStatus();
+        }
+        switch (status.state) {
+            case DOWNLOADING:
+                repository.cancelDbDownload();
+                break;
+            case CHECKING:
+            case VERIFYING:
+            case INSTALLING:
+                // 正忙，点它没有意义。**不是**禁用整行：disabled 会连带灰掉文字，
+                // 而这里的文字正是进度本身。
+                break;
+            case IDLE:
+            case INSTALLED:
+                if (status.localReady) {
+                    repository.checkForDbUpdate(true, null);
+                } else {
+                    repository.startDbDownload();
+                }
+                break;
+            case NEEDS_DOWNLOAD:
+            case WAITING_NETWORK:
+            case FAILED:
+            default:
+                // WAITING_NETWORK 也走下载：策略挡的是「自动下载」，
+                // 用户亲手点这一下就是策略在等的那个授权。
+                repository.startDbDownload();
+                break;
+        }
+    }
+
+    /**
+     * 渲染「诗库状态」行。**每个事件都会调**（下载中每秒好几次），所以这里只做
+     * 几次 setText，绝不碰仓库、绝不重新查询。
+     *
+     * <p>唯一的副作用是记下 {@link #lastStatus} 供点击时判分支。
+     */
+    private void renderDbStatus(@NonNull DbStatus status) {
+        if (binding == null) {
+            return;
+        }
+        lastStatus = status;
+
+        CharSequence value;
+        String sub;
+        switch (status.state) {
+            case CHECKING:
+                value = getString(R.string.data_loading);
+                sub = getString(R.string.mine_data_checking_sub);
+                break;
+            case NEEDS_DOWNLOAD:
+                value = getString(R.string.mine_data_update);
+                sub = getString(R.string.mine_data_update_sub, readableSize(status.total));
+                break;
+            case WAITING_NETWORK:
+                value = getString(R.string.mine_data_wait_wifi);
+                sub = getString(R.string.mine_data_update_sub, readableSize(status.total));
+                break;
+            case DOWNLOADING:
+                // percent 在总量未知时是 -1，那时只报「下载中」
+                value = status.percent >= 0
+                        ? getString(R.string.mine_data_downloading, status.percent)
+                        : getString(R.string.data_loading);
+                sub = getString(R.string.mine_data_progress_sub,
+                        readableSize(status.done), readableSize(status.total))
+                        + " · " + getString(R.string.mine_data_cancel);
+                break;
+            case VERIFYING:
+                value = getString(R.string.mine_data_verifying);
+                sub = getString(R.string.mine_data_verifying_sub);
+                break;
+            case INSTALLING:
+                value = getString(R.string.mine_data_installing);
+                sub = getString(R.string.mine_data_installing_sub);
+                break;
+            case FAILED:
+                value = getString(R.string.mine_data_failed);
+                sub = getString(R.string.mine_data_failed_sub,
+                        status.error == null ? getString(R.string.mine_data_failed) : status.error);
+                break;
+            case IDLE:
+            case INSTALLED:
+            default:
+                // INSTALLED 只是一次性信号，显示的稳态和「库已就绪」是同一个。
+                value = getString(status.localReady
+                        ? R.string.mine_data_ready : R.string.mine_data_seed);
+                sub = getString(R.string.data_source_label,
+                        status.localReady ? "本地诗库 poetry.db" : "内置示例数据");
+                if (status.localReady) {
+                    sub = sub + " · " + getString(R.string.mine_data_check);
+                }
+                break;
+        }
+
+        binding.rowDataSource.rowValue.setText(value);
+        binding.rowDataSource.rowSub.setText(sub);
+        // 忙碌时把箭头藏掉：它说的是「点进去有详情页」，而这几秒里点它是没用的
+        binding.rowDataSource.rowChevron.setVisibility(status.busy() ? View.GONE : View.VISIBLE);
+        // adb 投放提示只在「什么都没载入」时出现——库好好的却教用户去 push 文件本来就是错的
+        binding.dbHint.setVisibility(status.state == DbStatus.State.IDLE && !status.localReady
+                ? View.VISIBLE : View.GONE);
+    }
+
+    /** 进度文案用。刻意不进 bytes 级别的精确度：这里要的是「还有多久」，不是字节数。 */
+    @NonNull
+    private static String readableSize(long bytes) {
+        if (bytes <= 0) {
+            return "—";
+        }
+        if (bytes < 1024L * 1024L) {
+            return String.format(Locale.CHINA, "%.0f KB", bytes / 1024.0);
+        }
+        return String.format(Locale.CHINA, "%.1f MB", bytes / 1024.0 / 1024.0);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        // 先摘订阅再把 binding 置空：晚一步的话，队列里的那次回调会撞上 null binding。
+        if (statusWatcher != null) {
+            repository.removeDbStatusListener(statusWatcher);
+            statusWatcher = null;
+        }
+        lastStatus = null;
         binding = null;
     }
 }

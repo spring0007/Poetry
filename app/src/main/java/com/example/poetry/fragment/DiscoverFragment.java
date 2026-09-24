@@ -14,6 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.poetry.DetailActivity;
 import com.example.poetry.R;
 import com.example.poetry.adapter.PoemCardAdapter;
+import com.example.poetry.data.DbStatus;
+import com.example.poetry.data.DbStatusListener;
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
@@ -33,6 +35,15 @@ public class DiscoverFragment extends Fragment {
     private PoetryRepository repository;
     private PoemCardAdapter adapter;
 
+    /**
+     * 诗库状态订阅者，**每个视图一份**，在 {@code onViewCreated} 里新建。
+     *
+     * <p>不复用同一个实例：{@link com.example.poetry.data.DbStatusListener.ReadyWatcher}
+     * 靠「记住上一次的值」来判断跃迁，而它的第一次回调无论如何都算跃迁。转屏之后重新注册时，
+     * 若还是旧实例，它记得上一次已经是 ready，就会**跳过初始加载**，页面停在空白。
+     */
+    private DbStatusListener readyWatcher;
+
     /** 当前体裁筛选；空串表示「全部」 */
     private String currentKind = "";
 
@@ -51,6 +62,24 @@ public class DiscoverFragment extends Fragment {
 
         setupChips();
         setupList();
+
+        // 订阅诗库状态。注册会立刻回调一次当前状态，ReadyWatcher 把第一次回调算作跃迁，
+        // 所以下面不需要再单独调一次 loadAll()——首次加载就是这次回调做的。
+        // 库是下载下来之后才可用的，装好那一刻收到跃迁，页面才会从 15 首示例变成真实数据。
+        readyWatcher = new DbStatusListener.ReadyWatcher() {
+            @Override
+            protected void onReadyChanged(boolean ready, @NonNull DbStatus status) {
+                if (binding == null) {
+                    return;
+                }
+                loadAll();
+            }
+        };
+        repository.addDbStatusListener(readyWatcher);
+    }
+
+    /** 一次把这一页要的数据都取回来。库换了之后整页重取。 */
+    private void loadAll() {
         loadHero();
         loadFeatured();
     }
@@ -191,6 +220,11 @@ public class DiscoverFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        // 先摘订阅再把 binding 置空：晚一步的话，已经在队列里的那一次回调会撞上 null binding。
+        if (readyWatcher != null) {
+            repository.removeDbStatusListener(readyWatcher);
+            readyWatcher = null;
+        }
         binding = null;
     }
 }

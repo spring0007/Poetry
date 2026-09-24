@@ -8,6 +8,7 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -28,6 +29,7 @@ import com.example.poetry.fragment.BookshelfFragment;
 import com.example.poetry.fragment.CategoryFragment;
 import com.example.poetry.fragment.DiscoverFragment;
 import com.example.poetry.fragment.MineFragment;
+import com.example.poetry.ui.Skin;
 import com.example.poetry.util.Chips;
 
 import java.util.List;
@@ -43,16 +45,20 @@ public class MainActivity extends AppCompatActivity {
     private SearchResultAdapter searchAdapter;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    /** 当前已套用的皮肤；换肤后回到本页时据此重建 */
+    private String appliedSkin;
     private Runnable searchRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Skin.apply(this);
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
         repository = PoetryRepository.get(this);
         store = repository.store();
+        appliedSkin = store.getSkinId();
 
         // 适配 edge-to-edge 显示，避免底部导航被系统栏遮挡
         ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
@@ -68,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
 
         setupSearch();
         setupThemeButton();
+        // 只注册一次；生命周期结束时由 dispatcher 自动摘除
+        getOnBackPressedDispatcher().addCallback(this, searchBackCallback);
 
         // 仅在首次创建时选中默认页签，重建时由系统恢复状态
         if (savedInstanceState == null) {
@@ -93,6 +101,16 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.fragmentContainer, fragment)
                 .commit();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 在皮肤页换了配色：回来后要重建本页才会生效
+        if (store != null && appliedSkin != null
+                && !appliedSkin.equals(store.getSkinId())) {
+            recreate();
+        }
     }
 
     // ---------------------------------------------------------------- 搜索
@@ -207,11 +225,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void openSearchPanel() {
         binding.searchPanel.setVisibility(View.VISIBLE);
+        searchBackCallback.setEnabled(true);
     }
 
     private void closeSearchPanel() {
         binding.searchPanel.setVisibility(View.GONE);
         binding.searchInput.clearFocus();
+        searchBackCallback.setEnabled(false);
     }
 
     // ---------------------------------------------------------------- 主题
@@ -226,14 +246,14 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    public void onBackPressed() {
-        if (binding != null && binding.searchPanel.getVisibility() == View.VISIBLE) {
-            closeSearchPanel();
-            return;
-        }
-        super.onBackPressed();
-    }
+    /** 搜索面板展开时才接管返回键；收起后立刻交还给系统，否则返回键会永远退不出 App。 */
+    private final OnBackPressedCallback searchBackCallback =
+            new OnBackPressedCallback(false) {
+                @Override
+                public void handleOnBackPressed() {
+                    closeSearchPanel();
+                }
+            };
 
     @Override
     protected void onDestroy() {

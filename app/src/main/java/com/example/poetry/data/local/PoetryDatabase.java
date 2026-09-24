@@ -45,6 +45,14 @@ public final class PoetryDatabase {
     private static final String TAG = "PoetryDatabase";
     private static final int OPEN_FLAG = SQLiteDatabase.OPEN_READONLY;
 
+    /**
+     * 本 App 认得的 schema 版本。主版本号（点号前面那段）必须与库里的
+     * {@code meta.schema_version} 一致，否则下载下来的库会被拒绝安装——
+     * 一个 4.0 的库配 3.0 的 App 会在三个界面之后才抛 {@code SQLiteException}，
+     * 不如在安装前就说清楚。
+     */
+    public static final String SCHEMA_VERSION = "3.0";
+
     /** 设计稿「热门搜索」固定词 */
     public static final String[] HOT_KEYWORDS = {
             "中秋", "明月", "李白", "苏轼", "思乡", "边塞", "田园", "宋词", "元曲", "离骚"
@@ -63,17 +71,48 @@ public final class PoetryDatabase {
 
     private static volatile PoetryDatabase instance;
 
+    private final Context context;
+
     private SQLiteDatabase db;
     private SQLiteDatabase strainDb;
     private boolean ready;
+
+    /**
+     * 上次 {@link #open} 时磁盘上到底有没有那个文件。
+     *
+     * <p>和 {@link #isReady()} 不是一回事：文件在但打开失败（下坏了、被截断）时它是 true
+     * 而 ready 是 false，界面据此说「诗库损坏，请重新下载」而不是「还没下载」。
+     * <b>只在这里记录、不在别处查磁盘</b>——{@code locate()} 在极端情况下会去拷贝 assets，
+     * 那种开销不能出现在每次查询的路径上。
+     */
+    private volatile boolean filePresent;
+
+    /**
+     * 安装代数。{@link #markStale()} 在替换文件**之前**递增，{@link #openedGeneration}
+     * 记录当前句柄是哪一代打开的。
+     *
+     * <p>为什么需要它：Linux 的 {@code rename(2)} 只是把新 inode 挂到那个名字上，
+     * 已经在跑的 {@link SQLiteDatabase} 还攥着旧 inode 的 fd，会继续正常返回**旧数据**且
+     * 永不报错；而 {@code ensureOpen()} 看到「ready 且 db 还开着」就直接返回，也不会察觉。
+     *
+     * <p><b>真正干活的是显式调用 {@link #reload()} 的那一次</b>，代数的主要作用是自愈：
+     * 万一有线程抢在前面看到新文件，下一次 {@code ensureOpen()} 能自己纠正过来。
+     * 看到这里觉得「代数没被用到」时别删——它兜的就是那个竞态。
+     */
+    private long installGeneration;
+    private long openedGeneration = -1L;
 
     /** 分类计数缓存（首屏只需算一次） */
     private final Map<String, Long> kindCountCache = new HashMap<>();
     private final Map<String, Long> dynastyCountCache = new HashMap<>();
     private long totalCache = -1L;
 
+    /**
+     * Construction stays cheap on purpose: a background thread warms the repository up,
+     * and nothing here touches the disk.
+     */
     private PoetryDatabase(@NonNull Context context) {
-        open(context);
+        this.context = context.getApplicationContext();
     }
 
     public static PoetryDatabase get(@NonNull Context context) {
@@ -87,10 +126,76 @@ public final class PoetryDatabase {
         return instance;
     }
 
+    /**
+     * Connects to the database if it is not connected yet, picking up the files once a
+     * background copy has finished.
+     *
+     * Must be called off the main thread - the first successful call copies about 56 MB
+     * out of the assets before opening SQLite. Queries go through it so the app keeps
+     * working while the warm-up is still running (falling back to the seed data).
+     */
+    public synchronized void ensureOpen() {
+        if (ready && db != null && db.isOpen() && openedGeneration == installGeneration) {
+            return;
+        }
+        if (db != null && openedGeneration != installGeneration) {
+            // 文件被换过而句柄还是老的：不关掉的话下面这次 open() 只会把新旧句柄叠在一起。
+            closeLocked();
+        }
+        open(context);
+        openedGeneration = installGeneration;
+    }
+
     // ------------------------------------------------------------ 生命周期
+
+    /**
+     * 标记「磁盘上的文件换过了」，不关句柄。
+     *
+     * <p>必须在 {@code rename} 之前调用：之后才调用的话，中间那段时间里
+     * {@code ensureOpen()} 会看到代数是新的就直接重新打开，可能读到一个还没挂好的名字。
+     */
+    public synchronized void markStale() {
+        installGeneration++;
+    }
+
+    /**
+     * 关掉再打开，让新装好的文件真正生效。**必须在 IO 线程调用。**
+     *
+     * <p>关掉重开是 {@link com.example.poetry.data.AppExecutors} 单线程上的一个任务，
+     * 和所有查询排在同一条队里：如果在下载线程上关，而 IO 线程正在 {@code rawQuery}，
+     * {@code SQLiteClosable} 的引用计数会推迟真正的关闭、但 {@code isOpen()} 立刻变 false，
+     * 后续查询会抛 {@code IllegalStateException}（现有查询都吞异常返回空列表，所以不会崩，
+     * 但界面会闪一下空状态）。
+     *
+     * @return 重开之后库是否可用
+     */
+    public synchronized boolean reload() {
+        closeLocked();
+        open(context);
+        openedGeneration = installGeneration;
+        // 缓存描述的是旧文件里的数字，必须一起清掉——否则换了库之后「共 N 首」还是老的。
+        kindCountCache.clear();
+        dynastyCountCache.clear();
+        totalCache = -1L;
+        return isReady();
+    }
+
+    /** 释放句柄但不递增代数。调用方负责同步。 */
+    private void closeLocked() {
+        if (db != null) {
+            db.close();
+            db = null;
+        }
+        if (strainDb != null) {
+            strainDb.close();
+            strainDb = null;
+        }
+        ready = false;
+    }
 
     private void open(@NonNull Context context) {
         File mainFile = DatabaseProvider.locate(context, DatabaseProvider.POETRY_DB);
+        filePresent = mainFile != null;
         if (mainFile == null) {
             ready = false;
             Log.w(TAG, "poetry.db not found, app will fall back to seed data");
@@ -119,21 +224,126 @@ public final class PoetryDatabase {
         return ready && db != null && db.isOpen();
     }
 
+    /** 磁盘上有没有 {@code poetry.db}。见 {@link #filePresent} 的说明。 */
+    public boolean filePresent() {
+        return filePresent;
+    }
+
     /** 平仄库是否可用 */
     public boolean hasStrains() {
         return strainDb != null && strainDb.isOpen();
     }
 
     public synchronized void close() {
-        if (db != null) {
-            db.close();
-            db = null;
+        closeLocked();
+    }
+
+    // ------------------------------------------------------------ meta
+
+    /** {@code meta} 表里 App 关心的那几行。字段都是 {@code meta} 的原始值，没做解释。 */
+    public static final class Meta {
+        @Nullable
+        public final String schemaVersion;
+        @Nullable
+        public final String builtAt;
+
+        /** {@code subset='1'} 表示测试期子集库；完整库里这个键不存在。 */
+        public final boolean subset;
+
+        /** 库自己声称的篇数，用来和 {@code COUNT(*)} 对照。 */
+        public final long nPoems;
+
+        Meta(@Nullable String schemaVersion, @Nullable String builtAt, boolean subset, long nPoems) {
+            this.schemaVersion = schemaVersion;
+            this.builtAt = builtAt;
+            this.subset = subset;
+            this.nPoems = nPoems;
         }
-        if (strainDb != null) {
-            strainDb.close();
-            strainDb = null;
+
+        /** 与 {@link #SCHEMA_VERSION} 的主版本号是否一致。 */
+        public boolean schemaCompatible() {
+            return schemaVersion != null
+                    && majorOf(schemaVersion) == majorOf(SCHEMA_VERSION);
         }
-        ready = false;
+
+        private static int majorOf(@NonNull String version) {
+            int dot = version.indexOf('.');
+            String head = dot < 0 ? version : version.substring(0, dot);
+            try {
+                return Integer.parseInt(head.trim());
+            } catch (NumberFormatException e) {
+                return -1;
+            }
+        }
+
+        @NonNull
+        @Override
+        public String toString() {
+            return "Meta{schema=" + schemaVersion + " builtAt=" + builtAt
+                    + " subset=" + subset + " nPoems=" + nPoems + "}";
+        }
+    }
+
+    /**
+     * 从**活着的句柄**读 {@code meta}，读不到返回 null。
+     *
+     * <p>刻意不复用 {@link #readMetaFrom} 之外另开一个 {@link SQLiteDatabase}：多一个句柄就多一份
+     * 「文件被换掉时它握着旧 inode」的机会，而这里读出来的信息正是用来判断该不该换文件的。
+     *
+     * <p>调用前请确保 {@code ensureOpen()} 已经跑过（在 IO 线程上）。
+     */
+    @Nullable
+    public synchronized Meta readMeta() {
+        if (!isReady()) {
+            return null;
+        }
+        return readMetaFrom(db);
+    }
+
+    /**
+     * 从任意一个 {@code poetry.db} 句柄读 meta。给 {@code DbValidator} 校验尚未安装的
+     * {@code .part} 文件用——那时候还不能动活着的那个句柄。
+     */
+    @Nullable
+    public static Meta readMetaFrom(@NonNull SQLiteDatabase handle) {
+        String schema = null;
+        String builtAt = null;
+        String subset = null;
+        long nPoems = 0L;
+        Cursor c = null;
+        try {
+            c = handle.rawQuery("SELECT k, v FROM meta", null);
+            while (c.moveToNext()) {
+                String k = c.getString(0);
+                String v = c.getString(1);
+                if ("schema_version".equals(k)) {
+                    schema = v;
+                } else if ("built_at".equals(k)) {
+                    builtAt = v;
+                } else if ("subset".equals(k)) {
+                    subset = v;
+                } else if ("n_poems".equals(k)) {
+                    nPoems = parseLongOrZero(v);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "read meta failed", e);
+            return null;
+        } finally {
+            closeQuietly(c);
+        }
+        return new Meta(schema, builtAt, "1".equals(subset), nPoems);
+    }
+
+    private static long parseLongOrZero(@Nullable String value) {
+        if (value == null) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     // ------------------------------------------------------------ 查询：作品

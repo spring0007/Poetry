@@ -41,6 +41,7 @@
         android:textColor="@color/ink_500" />
 
     <ImageView
+        android:id="@+id/rowChevron"
         android:layout_width="18dp"
         android:layout_height="18dp"
         android:layout_marginStart="@dimen/space_2"

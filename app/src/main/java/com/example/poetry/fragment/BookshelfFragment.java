@@ -1,5 +1,7 @@
 package com.example.poetry.fragment;
 
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.poetry.HistoryActivity;
 import com.example.poetry.DetailActivity;
 import com.example.poetry.R;
 import com.example.poetry.adapter.PoemCardAdapter;
@@ -23,9 +26,11 @@ import com.example.poetry.data.model.PoemKind;
 import com.example.poetry.databinding.FragmentBookshelfBinding;
 import com.example.poetry.util.Chips;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,6 +49,9 @@ public class BookshelfFragment extends Fragment {
 
     /** true = 网格视图 */
     private boolean gridMode = true;
+    /** 书架内搜索关键字，空串表示不过滤 */
+    private String query = "";
+
     /** 排序：0 最近 / 1 体裁 / 2 热度 */
     private int sortMode = 0;
 
@@ -61,9 +69,12 @@ public class BookshelfFragment extends Fragment {
         repository = PoetryRepository.get(requireContext());
         store = repository.store();
 
+        gridMode = store.isShelfGrid();
+        sortMode = store.getShelfSort();
         setupAdapters();
         setupSortChips();
         setupViewToggle();
+        setupSearch();
 
         binding.emptyState.emptyTitle.setText(R.string.shelf_empty_title);
         binding.emptyState.emptyDesc.setText(R.string.shelf_empty_desc);
@@ -119,6 +130,59 @@ public class BookshelfFragment extends Fragment {
         });
     }
 
+    /** 搜索框、清空书架，以及列表视图上的收藏时间 */
+    private void setupSearch() {
+        listAdapter.setMetaProvider(this::favoriteMeta);
+        binding.shelfSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // ignore
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                query = s == null ? "" : s.toString();
+                refresh();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                // ignore
+            }
+        });
+        binding.btnClear.setOnClickListener(v -> confirmClear());
+    }
+
+    /** 清空前先确认一次：收藏没有云端备份，删掉就找不回来了 */
+    private void confirmClear() {
+        if (repository.favorites().isEmpty()) {
+            Toast.makeText(requireContext(), R.string.shelf_empty_toast, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.shelf_clear)
+                .setMessage(R.string.shelf_clear_confirm)
+                .setNegativeButton(R.string.action_cancel, null)
+                .setPositiveButton(R.string.action_confirm, (dialog, which) -> {
+                    store.clearFavorites();
+                    Toast.makeText(requireContext(), R.string.shelf_cleared, Toast.LENGTH_SHORT).show();
+                    refresh();
+                })
+                .show();
+    }
+
+    /** 行卡第二行：收藏时间 + 作者 */
+    private String favoriteMeta(@NonNull Poem poem) {
+        String author = poem.getAuthorLabel();
+        long at = poem.getFavoriteAt();
+        if (at <= 0) {
+            return author;
+        }
+        String when = HistoryActivity.formatReadAt(at);
+        return when.isEmpty() ? author
+                : getString(R.string.shelf_fav_at, when) + " · " + author;
+    }
+
     private void setupSortChips() {
         binding.sortChips.removeAllViews();
         String[] labels = {
@@ -133,6 +197,7 @@ public class BookshelfFragment extends Fragment {
             chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (isChecked) {
                     sortMode = index;
+                    store.setShelfSort(index);
                     refresh();
                 }
             });
@@ -144,11 +209,13 @@ public class BookshelfFragment extends Fragment {
         updateToggleState();
         binding.btnGrid.setOnClickListener(v -> {
             gridMode = true;
+            store.setShelfGrid(true);
             updateToggleState();
             refresh();
         });
         binding.btnList.setOnClickListener(v -> {
             gridMode = false;
+            store.setShelfGrid(false);
             updateToggleState();
             refresh();
         });
@@ -177,7 +244,20 @@ public class BookshelfFragment extends Fragment {
         } else if (sortMode == 2) {
             Collections.sort(list, (a, b) -> b.getScore() - a.getScore());
         }
-        return list;
+        String keyword = query == null ? "" : query.trim();
+        if (keyword.isEmpty()) {
+            return list;
+        }
+        String lower = keyword.toLowerCase(Locale.CHINA);
+        List<Poem> matched = new ArrayList<>();
+        for (Poem poem : list) {
+            if (poem.getTitle().toLowerCase(Locale.CHINA).contains(lower)
+                    || poem.getAuthorName().toLowerCase(Locale.CHINA).contains(lower)
+                    || poem.getBody().contains(keyword)) {
+                matched.add(poem);
+            }
+        }
+        return matched;
     }
 
     private void refresh() {
@@ -194,6 +274,19 @@ public class BookshelfFragment extends Fragment {
         binding.statType.setText(String.valueOf(kinds.size()));
         binding.statHours.setText(String.format(java.util.Locale.CHINA, "%.1f", store.getReadHours()));
 
+        if (empty) {
+            if (query.isEmpty()) {
+                binding.emptyState.emptyTitle.setText(R.string.shelf_empty_title);
+                binding.emptyState.emptyDesc.setText(R.string.shelf_empty_desc);
+            } else {
+                binding.emptyState.emptyTitle.setText(
+                        getString(R.string.shelf_search_empty, query));
+                binding.emptyState.emptyDesc.setText("");
+            }
+        }
+        boolean hasAny = !repository.favorites().isEmpty();
+        binding.shelfSearch.setVisibility(hasAny ? View.VISIBLE : View.GONE);
+        binding.btnClear.setVisibility(hasAny ? View.VISIBLE : View.GONE);
         binding.emptyState.getRoot().setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.shelfList.setVisibility(empty ? View.GONE : View.VISIBLE);
         binding.resumeCard.setVisibility(empty ? View.GONE : View.VISIBLE);

@@ -19,4 +19,84 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowBackground">@color/paper</item>
     </style>
+
+    <!-- ================= 皮肤 =================
+         每套只重定义「纸底 / 卡片 / 主色 / 强调 / 描边」这几项，文字墨色沿用。
+         夜间不需要再写一遍：同名颜色在 values-night/colors.xml 里另有定义，
+         父主题 Theme.Poetry 在夜间也会解析到 values-night 版本。 -->
+
+    <!-- 宣纸（默认）：暖白纸 + 朱红 -->
+    <style name="Theme.Poetry.Xuan" parent="Theme.Poetry">
+        <item name="colorPrimary">@color/skin_xuan_primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/skin_xuan_accent</item>
+        <item name="colorOnSecondary">@color/on_primary</item>
+        <item name="colorSurface">@color/skin_xuan_surface</item>
+        <item name="colorSurfaceVariant">@color/skin_xuan_surface_2</item>
+        <item name="colorOutline">@color/skin_xuan_line</item>
+        <item name="android:colorBackground">@color/skin_xuan_paper</item>
+        <item name="android:windowBackground">@color/skin_xuan_paper</item>
+        <item name="android:statusBarColor">@color/skin_xuan_paper</item>
+        <item name="android:navigationBarColor">@color/skin_xuan_paper</item>
+    </style>
+
+    <!-- 青瓷：青白纸 + 石青 -->
+    <style name="Theme.Poetry.Qingci" parent="Theme.Poetry">
+        <item name="colorPrimary">@color/skin_qingci_primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/skin_qingci_accent</item>
+        <item name="colorOnSecondary">@color/on_primary</item>
+        <item name="colorSurface">@color/skin_qingci_surface</item>
+        <item name="colorSurfaceVariant">@color/skin_qingci_surface_2</item>
+        <item name="colorOutline">@color/skin_qingci_line</item>
+        <item name="android:colorBackground">@color/skin_qingci_paper</item>
+        <item name="android:windowBackground">@color/skin_qingci_paper</item>
+        <item name="android:statusBarColor">@color/skin_qingci_paper</item>
+        <item name="android:navigationBarColor">@color/skin_qingci_paper</item>
+    </style>
+
+    <!-- 朱砂：米黄纸 + 深朱 -->
+    <style name="Theme.Poetry.Zhusha" parent="Theme.Poetry">
+        <item name="colorPrimary">@color/skin_zhusha_primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/skin_zhusha_accent</item>
+        <item name="colorOnSecondary">@color/on_primary</item>
+        <item name="colorSurface">@color/skin_zhusha_surface</item>
+        <item name="colorSurfaceVariant">@color/skin_zhusha_surface_2</item>
+        <item name="colorOutline">@color/skin_zhusha_line</item>
+        <item name="android:colorBackground">@color/skin_zhusha_paper</item>
+        <item name="android:windowBackground">@color/skin_zhusha_paper</item>
+        <item name="android:statusBarColor">@color/skin_zhusha_paper</item>
+        <item name="android:navigationBarColor">@color/skin_zhusha_paper</item>
+    </style>
+
+    <!-- 黛蓝：冷灰蓝纸 + 黛蓝 -->
+    <style name="Theme.Poetry.Dailan" parent="Theme.Poetry">
+        <item name="colorPrimary">@color/skin_dailan_primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/skin_dailan_accent</item>
+        <item name="colorOnSecondary">@color/on_primary</item>
+        <item name="colorSurface">@color/skin_dailan_surface</item>
+        <item name="colorSurfaceVariant">@color/skin_dailan_surface_2</item>
+        <item name="colorOutline">@color/skin_dailan_line</item>
+        <item name="android:colorBackground">@color/skin_dailan_paper</item>
+        <item name="android:windowBackground">@color/skin_dailan_paper</item>
+        <item name="android:statusBarColor">@color/skin_dailan_paper</item>
+        <item name="android:navigationBarColor">@color/skin_dailan_paper</item>
+    </style>
+
+    <!-- 墨韵：素白纸 + 墨黑（极简） -->
+    <style name="Theme.Poetry.Moyu" parent="Theme.Poetry">
+        <item name="colorPrimary">@color/skin_moyu_primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/skin_moyu_accent</item>
+        <item name="colorOnSecondary">@color/on_primary</item>
+        <item name="colorSurface">@color/skin_moyu_surface</item>
+        <item name="colorSurfaceVariant">@color/skin_moyu_surface_2</item>
+        <item name="colorOutline">@color/skin_moyu_line</item>
+        <item name="android:colorBackground">@color/skin_moyu_paper</item>
+        <item name="android:windowBackground">@color/skin_moyu_paper</item>
+        <item name="android:statusBarColor">@color/skin_moyu_paper</item>
+        <item name="android:navigationBarColor">@color/skin_moyu_paper</item>
+    </style>
 </resources>

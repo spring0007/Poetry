@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/paper"
+    android:background="?android:attr/colorBackground"
     android:orientation="vertical">
 
     <!-- 标题 -->
@@ -173,6 +173,24 @@
             app:tint="@color/ink_400" />
     </LinearLayout>
 
+
+    <!-- 书架内搜索 -->
+    <EditText
+        android:id="@+id/shelfSearch"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/size_search_height"
+        android:layout_marginStart="@dimen/page_margin"
+        android:layout_marginTop="@dimen/space_3"
+        android:layout_marginEnd="@dimen/page_margin"
+        android:background="@drawable/bg_search_field"
+        android:hint="@string/shelf_search_hint"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingStart="@dimen/space_3"
+        android:paddingEnd="@dimen/space_3"
+        android:textAppearance="@style/TextAppearance.Poetry.Body" />
+
     <!-- 排序 + 视图切换 -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -207,6 +225,15 @@
             android:layout_marginStart="@dimen/space_1"
             android:minWidth="0dp"
             android:text="@string/shelf_view_list" />
+
+            <Button
+                android:id="@+id/btnClear"
+                style="@style/Widget.Poetry.SegmentButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_1"
+                android:minWidth="0dp"
+                android:text="@string/shelf_clear" />
     </LinearLayout>
 
     <!-- 收藏列表 -->

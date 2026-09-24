@@ -1,8 +1,8 @@
 <resources>
     <!-- 应用名与品牌 -->
-    <string name="app_name">诗韵</string>
-    <string name="brand_name">诗韵</string>
-    <string name="brand_seal">韵</string>
+    <string name="app_name">诗词歌赋</string>
+    <string name="brand_name">诗词歌赋</string>
+    <string name="brand_seal">诗</string>
 
     <!-- 底部导航 -->
     <string name="tab_discover">发现</string>
@@ -87,9 +87,9 @@
     <string name="me_badges_meta">%1$d / %2$d 已解锁</string>
     <string name="me_group_more">更多</string>
     <string name="more_history">朗读历史</string>
-    <string name="more_history_sub">最近 7 天 24 次</string>
-    <string name="more_download">离线下载</string>
-    <string name="more_download_sub">已缓存 12 首</string>
+    <string name="more_history_sub">最近读过的内容</string>
+    <string name="more_download">离线语音包</string>
+    <string name="more_download_sub">下载或导入后可断网朗读</string>
     <string name="more_skin">皮肤主题</string>
     <string name="more_skin_sub">宣纸 · 石青</string>
     <string name="more_about">关于诗韵</string>
@@ -101,6 +101,13 @@
     <string name="tool_font_smaller">A−</string>
     <string name="tool_font_larger">A+</string>
     <string name="tool_note">注释</string>
+    <string name="tool_font_family">字体</string>
+    <string name="tool_pinyin">拼音</string>
+    <string name="font_family_serif">宋体</string>
+    <string name="font_family_sans">黑体</string>
+    <string name="font_switched">字体已切换为%1$s</string>
+    <string name="pinyin_shown">已显示拼音注音</string>
+    <string name="pinyin_hidden">已隐藏拼音注音</string>
     <string name="tab_translation">译文</string>
     <string name="tab_annotation">注释</string>
     <string name="tab_appreciation">赏析</string>
@@ -109,13 +116,9 @@
     <string name="player_speed">语速</string>
     <string name="voice_sheet_title">选择朗读音色</string>
     <string name="voice_sheet_sub">共 %1$d 种声音 · 点「试听」可预览</string>
-    <string name="voice_tag_local">系统内置</string>
-    <string name="voice_tag_style">风格音色</string>
-    <string name="voice_tag_pitch">音调 %1$s</string>
-    <string name="voice_tag_rate">倍速 %1$s</string>
     <string name="voice_try">试听</string>
     <string name="now_reading">开始朗读 · %1$s</string>
-    <string name="tts_unavailable">当前设备不支持语音合成</string>
+    <string name="tts_unavailable">语音引擎不可用，无法朗读</string>
     <string name="tts_preview_text">关关雎鸠，在河之洲。</string>
 
     <!-- 提示 -->
@@ -137,45 +140,88 @@
     <string name="detail_meta">%1$d 句 · %2$d 字</string>
     <string name="category_all">全部</string>
     <string name="toast_not_ready">%1$s（后台接口预留）</string>
-    <string name="voice_system_default">系统默认</string>
-    <string name="voice_default_name">普通话</string>
+    <string name="voice_default_name">默认音色</string>
+    <string name="voice_sheet_empty">语音包没能加载，暂时没有可选的音色</string>
+    <string name="voice_sheet_single">当前只有这一种声音</string>
 
-    <!-- 语音设置（espeak-ng） -->
+    <!-- 语音设置 -->
     <string name="tts_settings_title">语音设置</string>
     <string name="pref_speech">语音设置</string>
     <string name="pref_speech_sub">发音人、语速、音调与音量</string>
-    <string name="tts_engine_espeak">eSpeak-NG 离线</string>
-    <string name="tts_engine_hint">离线引擎不依赖系统与网络，朗读效果一致稳定</string>
     <string name="tts_engine_status">引擎状态 · %1$s</string>
+    <string name="tts_engine_builtin_ready">内置离线语音就绪 · %1$d 个音色</string>
+    <string name="tts_engine_builtin_failed">内置离线语音初始化失败：%1$s</string>
+    <string name="tts_engine_builtin_missing">内置离线语音不可用（缺少模型文件）</string>
+    <string name="tts_go_settings">去设置</string>
+    <string name="tts_tag_chinese">中文</string>
+    <string name="tts_tag_male">男声</string>
+    <string name="tts_tag_female">女声</string>
     <string name="tts_voice_label">发音人</string>
     <string name="tts_voice_meta">%1$d 种可用</string>
+
+    <!--
+        发音人。名字是按音色气质起的：模型自带的 speakers.txt 里只有匿名 id
+        （SSB0005 这种），174 个人逐个起名没有意义，所以挑出音域分布均匀的 15 个交给用户。
+        挑选依据与 id 对照见 TTS.md。
+    -->
+    <string name="voice_role_cangbai_name">苍柏</string>
+    <string name="voice_role_cangbai_desc">低沉浑厚 · 适合豪放</string>
+    <string name="voice_role_zimo_name">子墨</string>
+    <string name="voice_role_zimo_desc">醇厚从容 · 适合怀古</string>
+    <string name="voice_role_hanshan_name">寒山</string>
+    <string name="voice_role_hanshan_desc">沉稳内敛 · 适合边塞</string>
+    <string name="voice_role_songfeng_name">松风</string>
+    <string name="voice_role_songfeng_desc">温润清和 · 适合田园</string>
+    <string name="voice_role_yuanshan_name">远山</string>
+    <string name="voice_role_yuanshan_desc">清朗舒展 · 适合山水</string>
+    <string name="voice_role_heming_name">鹤鸣</string>
+    <string name="voice_role_heming_desc">明亮有力 · 适合咏志</string>
+    <string name="voice_role_suxin_name">素心</string>
+    <string name="voice_role_suxin_desc">沉静低回 · 适合闺怨</string>
+    <string name="voice_role_shuying_name">疏影</string>
+    <string name="voice_role_shuying_desc">温柔婉转 · 适合婉约</string>
+    <string name="voice_role_tingyu_name">听雨</string>
+    <string name="voice_role_tingyu_desc">知性清雅 · 适合咏物</string>
+    <string name="voice_role_ruolan_name">若兰</string>
+    <string name="voice_role_ruolan_desc">亲和自然 · 适合叙事</string>
+    <string name="voice_role_wanqing_name">婉清</string>
+    <string name="voice_role_wanqing_desc">甜美明亮 · 适合小令</string>
+    <string name="voice_role_caiwei_name">采薇</string>
+    <string name="voice_role_caiwei_desc">明朗舒展 · 适合思乡</string>
+    <string name="voice_role_xiaoya_name">小雅</string>
+    <string name="voice_role_xiaoya_desc">标准清晰 · 默认音色</string>
+    <string name="voice_role_mingyue_name">明月</string>
+    <string name="voice_role_mingyue_desc">清越悠远 · 适合咏月</string>
+    <string name="voice_role_lingxi_name">灵犀</string>
+    <string name="voice_role_lingxi_desc">清亮灵动 · 适合抒情</string>
     <string name="tts_pitch">音调</string>
     <string name="tts_volume">音量</string>
-    <string name="tts_pitch_range">语调幅度</string>
-    <string name="tts_word_gap">停顿</string>
     <string name="tts_ratio_value">%.1f×</string>
     <string name="tts_percent_value">%1$d%%</string>
-    <string name="tts_pace_value">%1$d 档</string>
     <string name="tts_test">试听</string>
     <string name="tts_stop">停止</string>
     <string name="tts_reset">恢复默认</string>
     <string name="tts_reset_done">已恢复默认语音设置</string>
-    <string name="tts_saved">语音设置已保存</string>
-    <string name="tts_reload_data">重载语音数据</string>
-    <string name="tts_reload_done">语音数据已重载</string>
-    <string name="tts_reload_failed">语音数据重载失败</string>
-    <string name="tts_status_ready">就绪</string>
-    <string name="tts_status_ready_version">就绪 · %1$s</string>
-    <string name="tts_status_preparing">正在准备语音引擎…</string>
-    <string name="tts_status_no_library">未加载 espeak-ng 原生库</string>
-    <string name="tts_status_no_data">语音数据未就绪</string>
-    <string name="tts_status_init_failed">espeak-ng 初始化失败</string>
     <string name="tts_play_failed">朗读失败，请重试</string>
     <string name="cd_speech">语音设置</string>
     <string name="mine_data_group">数据</string>
     <string name="mine_data_source">诗库状态</string>
     <string name="mine_data_ready">已载入本地诗库</string>
     <string name="mine_data_seed">内置示例数据</string>
+    <string name="mine_data_update">可下载诗库</string>
+    <string name="mine_data_wait_wifi">等待 Wi-Fi</string>
+    <string name="mine_data_downloading">下载中 %1$d%%</string>
+    <string name="mine_data_verifying">正在校验</string>
+    <string name="mine_data_installing">正在安装</string>
+    <string name="mine_data_failed">下载失败</string>
+    <string name="mine_data_cancel">取消</string>
+    <string name="mine_data_check">检查更新</string>
+    <string name="mine_data_checking_sub">正在检查诗库…</string>
+    <string name="mine_data_verifying_sub">正在校验…</string>
+    <string name="mine_data_installing_sub">正在替换诗库…</string>
+    <string name="mine_data_progress_sub">%1$s / %2$s</string>
+    <string name="mine_data_failed_sub">%1$s · 点按重试</string>
+    <string name="mine_data_update_sub">约 %1$s，点按下载</string>
     <string name="cd_voice">选择音色</string>
     <string name="cd_check">已选中</string>
 
@@ -190,4 +236,110 @@
     <string name="cd_close">关闭</string>
     <string name="cd_remove">移出书架</string>
     <string name="cd_edit">编辑资料</string>
+
+    <!-- ================= 通用动作 ================= -->
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_undo">撤销</string>
+
+    <!-- ================= 皮肤主题 ================= -->
+    <string name="skin_title">皮肤主题</string>
+    <string name="skin_summary">五套配色，选中后整页纸色与强调色立即变化</string>
+    <string name="skin_note">皮肤只换纸面与强调色，正文墨色保持不变，长时间阅读不刺眼；夜间模式仍可在朗读偏好里单独开关。</string>
+    <string name="skin_in_use">使用中</string>
+    <string name="skin_apply">选用</string>
+    <string name="skin_xuan_name">宣纸</string>
+    <string name="skin_xuan_desc">暖白纸 · 朱红</string>
+    <string name="skin_qingci_name">青瓷</string>
+    <string name="skin_qingci_desc">青白纸 · 石青</string>
+    <string name="skin_zhusha_name">朱砂</string>
+    <string name="skin_zhusha_desc">米黄纸 · 深朱</string>
+    <string name="skin_dailan_name">黛蓝</string>
+    <string name="skin_dailan_desc">冷灰蓝 · 黛蓝</string>
+    <string name="skin_moyu_name">墨韵</string>
+    <string name="skin_moyu_desc">素白纸 · 墨黑</string>
+
+    <!-- ================= 关于 ================= -->
+    <string name="about_title">关于诗韵</string>
+    <string name="about_slogan">一诗一词，皆可聆听</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_group_library">诗库</string>
+    <string name="about_library_note">诗库首次使用时从服务器下载一次，之后完全离线可读。除了这一次诗库下载，App 不发起任何网络请求，也不上传任何数据。</string>
+    <string name="about_group_voice">语音合成</string>
+    <string name="about_voice_engine">朗读由随 App 内置的离线语音合成完成：语音模型直接装在应用里，这台手机不需要额外安装任何东西，也不依赖任何第三方朗读 App。装好即可朗读，并可在 15 种发音人之间切换。合成全程在手机上完成，不上传任何数据。</string>
+    <string name="about_voice_state">语音引擎：%1$s</string>
+    <string name="about_group_privacy">隐私</string>
+    <string name="about_privacy_body">收藏、朗读历史、打卡与偏好都只存在这台手机上，App 没有账号、也不上传任何数据；朗读过程完全离线。</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="about_check_update_done">已是最新版本</string>
+    <string name="about_check_update_found">发现新诗库，可在「我的」页下载</string>
+    <string name="about_check_update_failed">检查失败：%1$s</string>
+    <string name="about_check_update_busy">正在检查…</string>
+    <string name="about_footer">诗韵 · 让每一首诗都被听见</string>
+
+    <!-- 数据备份 -->
+    <string name="about_group_data">数据备份</string>
+    <string name="about_data_body">收藏、朗读历史、阅读进度、打卡记录、个人资料与全部偏好，统一保存在本机的 user_data.json 文件中，可随时导出成 JSON 备份，也可从备份恢复。</string>
+    <string name="about_data_path">文件位置：%1$s</string>
+    <string name="about_export_data">导出备份</string>
+    <string name="about_import_data">恢复备份</string>
+    <string name="about_export_done">备份已导出</string>
+    <string name="about_export_failed">导出失败：%1$s</string>
+    <string name="about_import_done">已从备份恢复</string>
+    <string name="about_import_failed">不是有效的备份文件</string>
+
+    <!-- ================= 朗读历史 ================= -->
+    <string name="history_title">朗读历史</string>
+    <string name="history_clear">清空</string>
+    <string name="history_clear_confirm">确定清空全部朗读历史？清空后无法恢复。</string>
+    <string name="history_cleared">朗读历史已清空</string>
+    <string name="history_summary">最近朗读 %1$d 首 · 最多保留 30 条</string>
+    <string name="more_history_count">%1$d 条记录</string>
+    <string name="history_empty_title">还没有朗读记录</string>
+    <string name="history_empty_desc">打开任意一首诗朗读，这里会自动记下时间与篇目</string>
+
+    <!-- ================= 个人信息 ================= -->
+    <string name="profile_title">个人信息</string>
+    <string name="profile_save">保存</string>
+    <string name="profile_avatar_hint">选一个字当作头像</string>
+    <string name="profile_nickname">昵称</string>
+    <string name="profile_nickname_hint">给自己起个名字</string>
+    <string name="profile_signature">个性签名</string>
+    <string name="profile_signature_hint">写一句此刻的心情</string>
+    <string name="profile_taste">阅读偏好</string>
+    <string name="profile_stats">阅读数据</string>
+    <string name="profile_stat_plays">累计朗读 %1$d 次</string>
+    <string name="profile_stat_favorites">收藏 %1$d 首</string>
+    <string name="profile_stat_checkin">累计打卡 %1$d 天 · 连续 %2$d 天</string>
+    <string name="profile_saved">资料已保存</string>
+
+    <!-- ================= 打卡 ================= -->
+    <string name="me_checkin_today">今日打卡</string>
+    <string name="me_checkin_done">今日已打卡</string>
+    <string name="me_checkin_streak">连续 %1$d 天</string>
+    <string name="me_checkin_toast">打卡成功，已连续 %1$d 天</string>
+    <string name="me_checkin_repeat">今天已经打过卡了，明天再来</string>
+    <string-array name="weekday_labels">
+        <item>一</item>
+        <item>二</item>
+        <item>三</item>
+        <item>四</item>
+        <item>五</item>
+        <item>六</item>
+        <item>日</item>
+    </string-array>
+
+    <!-- ================= 朗读偏好补充 ================= -->
+    <string name="pref_auto_play">进入详情自动朗读</string>
+    <string name="pref_auto_play_sub">打开作品后立刻开始朗读</string>
+    <string name="pref_continuous">连续朗读</string>
+    <string name="pref_continuous_sub">一首读完自动接着读下一篇</string>
+
+    <!-- ================= 收藏 / 书架 ================= -->
+    <string name="shelf_search_hint">在书架中搜索标题或作者</string>
+    <string name="shelf_clear">清空书架</string>
+    <string name="shelf_clear_confirm">确定清空全部收藏？清空后无法恢复。</string>
+    <string name="shelf_cleared">书架已清空</string>
+    <string name="shelf_fav_at">%1$s 收藏</string>
+    <string name="shelf_search_empty">书架里没有匹配「%1$s」的作品</string>
 </resources>

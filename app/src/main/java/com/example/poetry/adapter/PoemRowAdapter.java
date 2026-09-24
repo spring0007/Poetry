@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,6 +22,12 @@ import java.util.List;
  */
 public class PoemRowAdapter extends RecyclerView.Adapter<PoemRowAdapter.Holder> {
 
+    /** 由调用方决定行内第二行显示什么 */
+    public interface MetaProvider {
+        @NonNull
+        String metaOf(@NonNull Poem poem);
+    }
+
     public interface Listener {
         void onPoemClick(@NonNull Poem poem);
 
@@ -29,9 +36,15 @@ public class PoemRowAdapter extends RecyclerView.Adapter<PoemRowAdapter.Holder> 
 
     private final List<Poem> data = new ArrayList<>();
     private final Listener listener;
+    /** 可选的元信息提供者，用于显示收藏时间等额外信息 */
+    private MetaProvider metaProvider;
 
     public PoemRowAdapter(@NonNull Listener listener) {
         this.listener = listener;
+    }
+
+    public void setMetaProvider(@Nullable MetaProvider provider) {
+        metaProvider = provider;
     }
 
     public void submit(@NonNull List<Poem> poems) {
@@ -81,8 +94,10 @@ public class PoemRowAdapter extends RecyclerView.Adapter<PoemRowAdapter.Holder> 
             binding.rowBadge.setText(poem.getKind().getLabel());
             ViewCompat.setBackgroundTintList(binding.rowBadge, ColorStateList.valueOf(light));
             binding.rowBadge.setTextColor(color);
-            binding.rowMeta.setText(poem.getAuthorLabel() + " · "
-                    + Dynasty.labelOf(poem.getDynasty()) + " · " + poem.getLineCount() + " 句");
+            String meta = metaProvider != null ? metaProvider.metaOf(poem)
+                    : poem.getAuthorLabel() + " · "
+                    + Dynasty.labelOf(poem.getDynasty()) + " · " + poem.getLineCount() + " 句";
+            binding.rowMeta.setText(meta);
 
             binding.getRoot().setOnClickListener(v -> listener.onPoemClick(poem));
             binding.rowRemove.setOnClickListener(v -> listener.onRemoveClick(poem));
