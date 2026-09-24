@@ -17,6 +17,7 @@ import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.databinding.ActivityVoiceSettingsBinding;
 import com.example.poetry.media.Speaker;
+import com.example.poetry.util.Sliders;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -167,26 +168,53 @@ public class VoiceSettingsActivity extends AppCompatActivity {
     // ------------------------------------------------------------------ 参数滑杆
 
     private void setupSliders() {
+        applyConfigToSliders();
+
+        binding.rateSlider.addOnChangeListener((slider, value, fromUser) -> {
+            config.setRate(Sliders.snapAndPushBack(slider, value));
+            updateValueLabels();
+            persistAndApply();
+        });
+        binding.pitchSlider.addOnChangeListener((slider, value, fromUser) -> {
+            config.setPitch(Sliders.snapAndPushBack(slider, value));
+            updateValueLabels();
+            persistAndApply();
+        });
+        binding.volumeSlider.addOnChangeListener((slider, value, fromUser) -> {
+            config.setVolume(Sliders.snapAndPushBack(slider, value));
+            updateValueLabels();
+            persistAndApply();
+        });
+    }
+
+    /**
+     * 把 config 里的三个值搬进滑杆。
+     * <p>
+     * 值先按滑杆自己的步进栅格收敛再 {@code setValue()}——存下来的值可能不在栅格上
+     * （例如拖拽留下的 0.92727274，见 {@link Sliders}），那会让 setValue 在首次布局时抛
+     * {@code IllegalStateException}，而那个崩点跟这行代码隔着好几层布局回调。
+     * 同时写回 config：界面上显示不出来的值不该继续留在配置里，否则标签、滑杆、
+     * 引擎三边对不上（{@code persist()} 只在真的修过东西时才写盘）。
+     */
+    private void applyConfigToSliders() {
+        float rate = Sliders.snap(binding.rateSlider, config.getRate());
+        float pitch = Sliders.snap(binding.pitchSlider, config.getPitch());
+        float volume = Sliders.snap(binding.volumeSlider, config.getVolume());
+        boolean healed = rate != config.getRate()
+                || pitch != config.getPitch()
+                || volume != config.getVolume();
+
+        config.setRate(rate);
+        config.setPitch(pitch);
+        config.setVolume(volume);
         binding.rateSlider.setValue(config.getRate());
         binding.pitchSlider.setValue(config.getPitch());
         binding.volumeSlider.setValue(config.getVolume());
         updateValueLabels();
 
-        binding.rateSlider.addOnChangeListener((slider, value, fromUser) -> {
-            config.setRate(value);
-            updateValueLabels();
-            persistAndApply();
-        });
-        binding.pitchSlider.addOnChangeListener((slider, value, fromUser) -> {
-            config.setPitch(value);
-            updateValueLabels();
-            persistAndApply();
-        });
-        binding.volumeSlider.addOnChangeListener((slider, value, fromUser) -> {
-            config.setVolume(value);
-            updateValueLabels();
-            persistAndApply();
-        });
+        if (healed) {
+            persist();
+        }
     }
 
     private void updateValueLabels() {
@@ -220,10 +248,7 @@ public class VoiceSettingsActivity extends AppCompatActivity {
     }
 
     private void applyConfigToUi() {
-        binding.rateSlider.setValue(config.getRate());
-        binding.pitchSlider.setValue(config.getPitch());
-        binding.volumeSlider.setValue(config.getVolume());
-        updateValueLabels();
+        applyConfigToSliders();
         refreshEngineState();
         reloadVoices();
     }

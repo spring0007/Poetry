@@ -19,19 +19,14 @@
     <color name="color_primary">@color/zhuhong_500</color>
     <color name="color_primary_press">@color/zhuhong_600</color>
     <color name="color_accent">@color/shiqing_500</color>
-    <color name="color_accent_soft">@color/shiqing_100</color>
     <color name="color_gold">@color/tenghuang_500</color>
-    <color name="color_success">@color/zhulv_500</color>
-    <color name="color_danger">#FFEF7A6C</color>
 
     <!-- ================= 中性色（夜间） ================= -->
     <color name="ink_900">#FFF5F1E9</color>
     <color name="ink_700">#FFE4DECF</color>
     <color name="ink_500">#FFBFB8A9</color>
     <color name="ink_400">#FF9E9789</color>
-    <color name="ink_300">#FF7A7365</color>
     <color name="line">#FF443C36</color>
-    <color name="line_strong">#FF584D45</color>
 
     <!-- ================= 表面色（夜间） ================= -->
     <color name="paper">#FF1E1B18</color>
@@ -41,10 +36,8 @@
 
     <!-- ================= 通用（夜间） ================= -->
     <color name="on_primary">#FF2A211C</color>
-    <color name="scrim">#B3000000</color>
 
     <!-- ================= 底部导航（夜间） ================= -->
-    <color name="nav_checked">@color/color_primary</color>
     <color name="nav_unchecked">@color/ink_400</color>
 
     <!-- ================= 皮肤（夜间）：与 values/colors.xml 同名，切换日夜自动取用 ================= -->

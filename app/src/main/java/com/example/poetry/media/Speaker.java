@@ -1,7 +1,6 @@
 package com.example.poetry.media;
 
 import android.content.Context;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -9,6 +8,7 @@ import androidx.annotation.Nullable;
 import com.example.poetry.R;
 import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
+import com.example.poetry.util.LogUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +24,6 @@ import java.util.List;
  * 这一层另外管一件事：把选中的音色记在自己身上，UI 的选择状态以这里为准。
  */
 public final class Speaker {
-
-    private static final String TAG = "Speaker";
 
     private static volatile Speaker instance;
 
@@ -94,7 +92,7 @@ public final class Speaker {
                 }
             });
         } catch (Throwable error) {
-            Log.w(TAG, "speech prepare failed", error);
+            LogUtil.w("speech prepare failed", error);
         }
     }
 

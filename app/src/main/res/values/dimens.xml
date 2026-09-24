@@ -9,15 +9,10 @@
     <dimen name="space_6">24dp</dimen>
     <dimen name="space_8">32dp</dimen>
     <dimen name="space_10">40dp</dimen>
-    <dimen name="space_12">48dp</dimen>
 
     <!-- 页面左右安全边距 -->
     <dimen name="page_margin">16dp</dimen>
-    <!-- 底部导航占位高度 -->
-    <dimen name="bottom_nav_space">8dp</dimen>
-
     <!-- ================= 圆角 ================= -->
-    <dimen name="radius_sm">8dp</dimen>
     <dimen name="radius_md">14dp</dimen>
     <dimen name="radius_lg">20dp</dimen>
     <dimen name="radius_xl">28dp</dimen>
@@ -39,17 +34,14 @@
     <dimen name="size_seal">26dp</dimen>
     <dimen name="size_brand_icon">18dp</dimen>
     <dimen name="size_play_button">56dp</dimen>
-    <dimen name="size_play_icon">26dp</dimen>
     <dimen name="size_progress_height">5dp</dimen>
     <dimen name="size_card_bar">4dp</dimen>
     <dimen name="size_avatar">52dp</dimen>
     <dimen name="size_profile_avatar">64dp</dimen>
     <dimen name="size_author_avatar">42dp</dimen>
-    <dimen name="size_group_icon">30dp</dimen>
     <dimen name="size_badge_icon">42dp</dimen>
     <dimen name="size_checkin_dot">28dp</dimen>
     <dimen name="size_type_mark">72dp</dimen>
-    <dimen name="size_mini_slider">96dp</dimen>
     <dimen name="size_row_icon">30dp</dimen>
 
     <!-- ================= 行高 / 字距 ================= -->
@@ -58,18 +50,17 @@
 
     <!-- ================= 阴影 ================= -->
     <dimen name="elevation_card">2dp</dimen>
-    <dimen name="elevation_sheet">8dp</dimen>
 
     <!-- 语音设置 -->
     <dimen name="size_voice_list">320dp</dimen>
     <!-- 语速 / 音调 / 音量量程（与 TtsConfig 常量一一对应） -->
-    <dimen name="tts_rate_min">0.6</dimen>
-    <dimen name="tts_rate_max">1.8</dimen>
-    <dimen name="tts_rate_default">0.9</dimen>
-    <dimen name="tts_pitch_min">0.5</dimen>
-    <dimen name="tts_pitch_max">1.5</dimen>
-    <dimen name="tts_pitch_default">1.0</dimen>
-    <dimen name="tts_volume_min">0.0</dimen>
-    <dimen name="tts_volume_max">1.0</dimen>
-    <dimen name="tts_volume_default">0.9</dimen>
+    <item name="tts_rate_min" type="dimen" format="float">0.6</item>
+    <item name="tts_rate_max" type="dimen" format="float">1.8</item>
+    <item name="tts_rate_default" type="dimen" format="float">0.9</item>
+    <item name="tts_pitch_min" type="dimen" format="float">0.5</item>
+    <item name="tts_pitch_max" type="dimen" format="float">1.5</item>
+    <item name="tts_pitch_default" type="dimen" format="float">1.0</item>
+    <item name="tts_volume_min" type="dimen" format="float">0.0</item>
+    <item name="tts_volume_max" type="dimen" format="float">1.0</item>
+    <item name="tts_volume_default" type="dimen" format="float">0.9</item>
 </resources>

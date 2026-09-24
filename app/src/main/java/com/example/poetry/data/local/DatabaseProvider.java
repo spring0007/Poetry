@@ -2,10 +2,11 @@ package com.example.poetry.data.local;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.example.poetry.util.LogUtil;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,8 +28,6 @@ import java.io.OutputStream;
  * 保证 UI 在任何情况下都能跑通。
  */
 public final class DatabaseProvider {
-
-    private static final String TAG = "DatabaseProvider";
 
     public static final String POETRY_DB = "poetry.db";
     public static final String STRAIN_DB = "poetry-strains.db";
@@ -108,7 +107,7 @@ public final class DatabaseProvider {
                 continue;
             }
             if (file.delete()) {
-                Log.i(TAG, "gc stale part " + name);
+                LogUtil.i("gc stale part " + name);
             }
         }
     }
@@ -194,10 +193,10 @@ public final class DatabaseProvider {
                 throw new IOException("rename failed: " + temp);
             }
             pref.edit().putBoolean(KEY_COPIED + fileName, true).apply();
-            Log.i(TAG, "copied " + fileName + " from assets -> " + target.getAbsolutePath());
+            LogUtil.i("copied " + fileName + " from assets -> " + target.getAbsolutePath());
             return target;
         } catch (IOException e) {
-            Log.w(TAG, "no bundled " + fileName + " in assets");
+            LogUtil.w("no bundled " + fileName + " in assets");
             if (temp.exists()) {
                 //noinspection ResultOfMethodCallIgnored
                 temp.delete();

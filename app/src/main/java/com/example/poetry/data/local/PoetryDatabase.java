@@ -3,7 +3,6 @@ package com.example.poetry.data.local;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,6 +13,7 @@ import com.example.poetry.data.model.Dynasty;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
 import com.example.poetry.data.model.Theme;
+import com.example.poetry.util.LogUtil;
 import com.example.poetry.util.QueryNormalizer;
 
 import java.io.File;
@@ -42,7 +42,6 @@ import java.util.Set;
  */
 public final class PoetryDatabase {
 
-    private static final String TAG = "PoetryDatabase";
     private static final int OPEN_FLAG = SQLiteDatabase.OPEN_READONLY;
 
     /**
@@ -198,15 +197,15 @@ public final class PoetryDatabase {
         filePresent = mainFile != null;
         if (mainFile == null) {
             ready = false;
-            Log.w(TAG, "poetry.db not found, app will fall back to seed data");
+            LogUtil.w("poetry.db not found, app will fall back to seed data");
             return;
         }
         try {
             db = SQLiteDatabase.openDatabase(mainFile.getAbsolutePath(), null, OPEN_FLAG);
             ready = true;
-            Log.i(TAG, "poetry.db opened: " + mainFile.getAbsolutePath());
+            LogUtil.i("poetry.db opened: " + mainFile.getAbsolutePath());
         } catch (Exception e) {
-            Log.e(TAG, "open poetry.db failed", e);
+            LogUtil.e("open poetry.db failed", e);
             ready = false;
             return;
         }
@@ -215,7 +214,7 @@ public final class PoetryDatabase {
             try {
                 strainDb = SQLiteDatabase.openDatabase(strainFile.getAbsolutePath(), null, OPEN_FLAG);
             } catch (Exception e) {
-                Log.w(TAG, "open poetry-strains.db failed", e);
+                LogUtil.w("open poetry-strains.db failed", e);
             }
         }
     }
@@ -327,7 +326,7 @@ public final class PoetryDatabase {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "read meta failed", e);
+            LogUtil.e("read meta failed", e);
             return null;
         } finally {
             closeQuietly(c);
@@ -365,7 +364,7 @@ public final class PoetryDatabase {
                 list.add(readPoem(c));
             }
         } catch (Exception e) {
-            Log.e(TAG, "featured failed", e);
+            LogUtil.e("featured failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -398,7 +397,7 @@ public final class PoetryDatabase {
                 return readPoem(c);
             }
         } catch (Exception e) {
-            Log.e(TAG, "poemById failed", e);
+            LogUtil.e("poemById failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -456,7 +455,7 @@ public final class PoetryDatabase {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "query failed: " + sql, e);
+            LogUtil.e("query failed: " + sql, e);
         } finally {
             closeQuietly(c);
         }
@@ -482,7 +481,7 @@ public final class PoetryDatabase {
                 out.add(readPoem(c));
             }
         } catch (Exception e) {
-            Log.e(TAG, "listByKind failed", e);
+            LogUtil.e("listByKind failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -504,7 +503,7 @@ public final class PoetryDatabase {
                 out.add(readPoem(c));
             }
         } catch (Exception e) {
-            Log.e(TAG, "listByDynasty failed", e);
+            LogUtil.e("listByDynasty failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -526,7 +525,7 @@ public final class PoetryDatabase {
                 out.add(readPoem(c));
             }
         } catch (Exception e) {
-            Log.e(TAG, "listByAuthor failed", e);
+            LogUtil.e("listByAuthor failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -555,7 +554,7 @@ public final class PoetryDatabase {
                 totalCache = c.getLong(0);
             }
         } catch (Exception e) {
-            Log.e(TAG, "totalCount failed", e);
+            LogUtil.e("totalCount failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -581,7 +580,7 @@ public final class PoetryDatabase {
                 total = c.getLong(0);
             }
         } catch (Exception e) {
-            Log.e(TAG, "countOfKind failed", e);
+            LogUtil.e("countOfKind failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -619,7 +618,7 @@ public final class PoetryDatabase {
                 counts.put(c.getString(0), c.getLong(1));
             }
         } catch (Exception e) {
-            Log.e(TAG, "dynastyCategories failed", e);
+            LogUtil.e("dynastyCategories failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -664,7 +663,7 @@ public final class PoetryDatabase {
                 count = c.getLong(0);
             }
         } catch (Exception e) {
-            Log.e(TAG, "approxThemeCount failed", e);
+            LogUtil.e("approxThemeCount failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -692,7 +691,7 @@ public final class PoetryDatabase {
                 out.add(author);
             }
         } catch (Exception e) {
-            Log.e(TAG, "topAuthors failed", e);
+            LogUtil.e("topAuthors failed", e);
         } finally {
             closeQuietly(c);
         }
@@ -720,7 +719,7 @@ public final class PoetryDatabase {
                 return new String(data, StandardCharsets.UTF_8);
             }
         } catch (Exception e) {
-            Log.w(TAG, "strainOf failed", e);
+            LogUtil.w("strainOf failed", e);
         } finally {
             closeQuietly(c);
         }

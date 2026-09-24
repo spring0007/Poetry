@@ -24,19 +24,14 @@
     <color name="color_primary">@color/zhuhong_500</color>
     <color name="color_primary_press">@color/zhuhong_600</color>
     <color name="color_accent">@color/shiqing_500</color>
-    <color name="color_accent_soft">@color/shiqing_100</color>
     <color name="color_gold">@color/tenghuang_500</color>
-    <color name="color_success">@color/zhulv_500</color>
-    <color name="color_danger">#FFD9483B</color>
 
     <!-- ================= 中性色：暖调墨色（非纯黑） ================= -->
     <color name="ink_900">#FF2A211C</color>
     <color name="ink_700">#FF453A33</color>
     <color name="ink_500">#FF6D625B</color>
     <color name="ink_400">#FF918579</color>
-    <color name="ink_300">#FFBDB1A6</color>
     <color name="line">#FFE6DFD8</color>
-    <color name="line_strong">#FFD2C8BE</color>
 
     <!-- ================= 表面色：宣纸暖白 ================= -->
     <color name="paper">#FFFDFBF4</color>
@@ -46,12 +41,9 @@
 
     <!-- ================= 通用 ================= -->
     <color name="white">#FFFFFFFF</color>
-    <color name="black">#FF000000</color>
     <color name="on_primary">#FFFFFFFF</color>
-    <color name="scrim">#802A211C</color>
 
     <!-- ================= 底部导航选中/未选中 ================= -->
-    <color name="nav_checked">@color/color_primary</color>
     <color name="nav_unchecked">@color/ink_400</color>
 
     <!-- ================= 皮肤：每套 6 个色（纸底 / 卡片 / 次级卡片 / 主色 / 强调 / 描边） =================

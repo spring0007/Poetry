@@ -10,9 +10,6 @@ public class LogUtil {
 	private static final String TAG = "Poetry";
 	private static final boolean isDebuggable = true;
 
-	private static String methodName = null, filename = null, msg = null;
-	private static int lineno = 0;
-
 	private LogUtil() {
 		return;
 	}
@@ -24,59 +21,60 @@ public class LogUtil {
 	public static void i(final String message) {
 		if (!isDebuggable) return;
 
-		getMethodNames(new Throwable().getStackTrace());
-		Log.i(TAG, createLog(message));
+		Log.i(TAG, createLog(message, new Throwable().getStackTrace()));
 	}
 
 	public static void d(final String message) {
 		if (!isDebuggable) return;
 
-		getMethodNames(new Throwable().getStackTrace());
-		Log.d(TAG, createLog(message));
+		Log.d(TAG, createLog(message, new Throwable().getStackTrace()));
 	}
 
 	public static void v(final String message) {
 		if (!isDebuggable) return;
 
-		getMethodNames(new Throwable().getStackTrace());
-		Log.v(TAG, createLog(message));
+		Log.v(TAG, createLog(message, new Throwable().getStackTrace()));
 	}
 
 	public static void e(final String message) {
 		if (!isDebuggable) return;
 
-		getMethodNames(new Throwable().getStackTrace());
-		Log.e(TAG, createLog(message));
+		Log.e(TAG, createLog(message, new Throwable().getStackTrace()));
 	}
 
-	public static void e(final String message, Exception e) {
+	public static void e(final String message, Throwable e) {
 		if (!isDebuggable) return;
 
-		getMethodNames(new Throwable().getStackTrace());
-		Log.e(TAG, createLog(message),e);
+		Log.e(TAG, createLog(message, new Throwable().getStackTrace()), e);
 	}
 
 	public static void w(final String message) {
 		if (!isDebuggable) return;
 
-		getMethodNames(new Throwable().getStackTrace());
-		Log.w(TAG, createLog(message));
+		Log.w(TAG, createLog(message, new Throwable().getStackTrace()));
 	}
 
-	private static void getMethodNames(StackTraceElement[] sElements) {
-		filename =  sElements[1].getFileName();
-		methodName = sElements[1].getMethodName();
-		lineno = sElements[1].getLineNumber();
+	public static void w(final String message, Throwable e) {
+		if (!isDebuggable) return;
+
+		Log.w(TAG, createLog(message, new Throwable().getStackTrace()), e);
 	}
 
-	private static String createLog(String log) {
+	/**
+	 * 拼出 {@code [File : method : line]:} 前缀。
+	 *
+	 * <p>栈是从**调用方**取好传进来的（在 i/d/v/e/w 里 {@code new Throwable()}），
+	 * 所以 {@code sElements[0]} 是那个日志方法本身，{@code [1]} 才是真正的调用点。
+	 * 别把取栈挪进本方法——那样下标要整体挪一位。
+	 */
+	private static String createLog(String log, StackTraceElement[] sElements) {
 		StringBuffer buffer = new StringBuffer();
 		buffer.append("[");
-		buffer.append(filename);
+		buffer.append(sElements[1].getFileName());
 		buffer.append(" : ");
-		buffer.append(methodName);
+		buffer.append(sElements[1].getMethodName());
 		buffer.append(" : ");
-		buffer.append(lineno);
+		buffer.append(sElements[1].getLineNumber());
 		buffer.append("]:");
 		buffer.append(log);
 		return buffer.toString();

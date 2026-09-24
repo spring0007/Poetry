@@ -7,7 +7,6 @@ import android.media.AudioFormat;
 import android.media.AudioTrack;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -15,6 +14,7 @@ import androidx.annotation.Nullable;
 import com.example.poetry.R;
 import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
+import com.example.poetry.util.LogUtil;
 import com.k2fsa.sherpa.onnx.GeneratedAudio;
 import com.k2fsa.sherpa.onnx.OfflineTts;
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig;
@@ -62,8 +62,6 @@ import java.util.concurrent.Executors;
  * 音调没有对应参数——VITS 只有时长这一个旋钮，改音高得另训模型。见 {@code TTS.md}。
  */
 public final class SherpaTts implements SpeechEngine {
-
-    private static final String TAG = "SherpaTts";
 
     /** 模型拷贝的目标目录，下面按包 id 再分一层。 */
     private static final String MODEL_DIR = "tts_model";
@@ -211,14 +209,14 @@ public final class SherpaTts implements SpeechEngine {
             try {
                 base = ensureModel(app, pack);
             } catch (IOException error) {
-                Log.w(TAG, "拷「" + pack.id + "」的模型失败", error);
+                LogUtil.w("拷「" + pack.id + "」的模型失败", error);
                 anyAssets = true;
                 reason = describe(error);
                 continue;
             }
             if (base == null) {
                 // assets 里就没有：仓库用 .gitignore 忽略了这个目录，新克隆必然如此
-                Log.w(TAG, "assets/" + pack.assetDir + " 里缺模型文件");
+                LogUtil.w("assets/" + pack.assetDir + " 里缺模型文件");
                 continue;
             }
             anyAssets = true;
@@ -227,7 +225,7 @@ public final class SherpaTts implements SpeechEngine {
             } catch (Throwable error) {
                 // native 库加载失败是 UnsatisfiedLinkError（Error 而非 Exception），
                 // 这里是朗读的唯一实现，绝不能把整个 App 带崩
-                Log.w(TAG, "「" + pack.id + "」初始化失败", error);
+                LogUtil.w("「" + pack.id + "」初始化失败", error);
                 reason = describe(error);
             }
         }
@@ -278,12 +276,12 @@ public final class SherpaTts implements SpeechEngine {
 
         List<String> speakers = readSpeakers(base);
         if (engine.numSpeakers() != speakers.size()) {
-            Log.w(TAG, "「" + pack.id + "」引擎认到 " + engine.numSpeakers()
+            LogUtil.w("「" + pack.id + "」引擎认到 " + engine.numSpeakers()
                     + " 个发音人，speakers.txt 有 " + speakers.size() + " 行");
         }
         List<VoicePacks.Role> roles = VoicePacks.verifiedRoles(pack, speakers);
         if (roles.size() < pack.roles.length) {
-            Log.w(TAG, "「" + pack.id + "」发音人核对没过：登记的 " + pack.roles.length
+            LogUtil.w("「" + pack.id + "」发音人核对没过：登记的 " + pack.roles.length
                     + " 个里只剩 " + roles.size() + " 个可用");
         }
         if (roles.isEmpty()) {
@@ -291,7 +289,7 @@ public final class SherpaTts implements SpeechEngine {
             throw new IOException("发音人一个都没对上：" + pack.id);
         }
         int sampleRate = engine.sampleRate() > 0 ? engine.sampleRate() : pack.fallbackSampleRate;
-        Log.i(TAG, "「" + pack.id + "」就绪, sampleRate=" + sampleRate
+        LogUtil.i("「" + pack.id + "」就绪, sampleRate=" + sampleRate
                 + ", speakers=" + engine.numSpeakers() + ", 可用音色=" + roles.size());
         return new Loaded(pack, engine, sampleRate, roles);
     }
@@ -338,7 +336,7 @@ public final class SherpaTts implements SpeechEngine {
         List<String> names = Arrays.asList(available);
         for (String name : pack.files) {
             if (!names.contains(name)) {
-                Log.w(TAG, "assets/" + pack.assetDir + " 缺少 " + name);
+                LogUtil.w("assets/" + pack.assetDir + " 缺少 " + name);
                 return null;
             }
         }
@@ -371,7 +369,7 @@ public final class SherpaTts implements SpeechEngine {
         for (String name : LEGACY_FLAT_FILES) {
             deleteRecursively(new File(dir, name));
         }
-        Log.i(TAG, "已清掉旧版平铺在 tts_model/ 下的模型文件");
+        LogUtil.i("已清掉旧版平铺在 tts_model/ 下的模型文件");
     }
 
     private static void copy(@NonNull AssetManager assets, @NonNull String from,
@@ -406,7 +404,7 @@ public final class SherpaTts implements SpeechEngine {
         }
         // 删不掉也不致命：后面 mkdirs/覆盖写会把该有的补上
         if (!file.delete()) {
-            Log.i(TAG, "删不掉 " + file);
+            LogUtil.i("删不掉 " + file);
         }
     }
 
@@ -717,7 +715,7 @@ public final class SherpaTts implements SpeechEngine {
                 dispatchDone();
             }
         } catch (Throwable error) {
-            Log.w(TAG, "内置语音合成失败", error);
+            LogUtil.w("内置语音合成失败", error);
             if (gen == generation) {
                 dispatchError(string(R.string.tts_play_failed));
             }
@@ -815,14 +813,14 @@ public final class SherpaTts implements SpeechEngine {
                     .build();
             if (created.getState() != AudioTrack.STATE_INITIALIZED) {
                 created.release();
-                Log.w(TAG, "AudioTrack 没初始化成功");
+                LogUtil.w("AudioTrack 没初始化成功");
                 return null;
             }
             created.setVolume(volume);
             created.play();
             return created;
         } catch (Throwable error) {
-            Log.w(TAG, "建 AudioTrack 失败", error);
+            LogUtil.w("建 AudioTrack 失败", error);
             return null;
         }
     }
@@ -894,7 +892,7 @@ public final class SherpaTts implements SpeechEngine {
             try {
                 item.engine.release();
             } catch (Throwable error) {
-                Log.w(TAG, "释放 native 引擎失败（" + item.pack.id + "）", error);
+                LogUtil.w("释放 native 引擎失败（" + item.pack.id + "）", error);
             }
         }
     }

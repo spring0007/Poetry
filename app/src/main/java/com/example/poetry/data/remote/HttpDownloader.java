@@ -1,9 +1,9 @@
 package com.example.poetry.data.remote;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.example.poetry.util.LogUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -37,8 +37,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 当场被删，根本轮不到「往旧内容后面接新内容」。
  */
 public final class HttpDownloader {
-
-    private static final String TAG = "HttpDownloader";
 
     private static final int BUFFER = 64 * 1024;
     /** 进度节流：至少涨这么多字节才投递一次 */
@@ -179,7 +177,7 @@ public final class HttpDownloader {
                 // (b) 必须从头写：往半成品后面追加完整响应体，会得到一个**比预期更长**的
                 // 损坏文件，而且 sha 校验会以一种很难看懂的方式失败。
                 if (resumeFrom > 0) {
-                    Log.i(TAG, "服务器忽略了 Range，从头重下");
+                    LogUtil.i("服务器忽略了 Range，从头重下");
                     resumeFrom = 0L;
                 }
                 append = false;
@@ -277,7 +275,7 @@ public final class HttpDownloader {
 
     private static void deleteQuietly(@NonNull File file) {
         if (file.exists() && !file.delete()) {
-            Log.w(TAG, "删不掉 " + file.getName());
+            LogUtil.w("删不掉 " + file.getName());
         }
     }
 

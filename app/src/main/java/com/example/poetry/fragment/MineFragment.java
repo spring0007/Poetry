@@ -33,6 +33,7 @@ import com.example.poetry.databinding.FragmentMineBinding;
 import com.example.poetry.ui.Skin;
 import com.example.poetry.media.Speaker;
 import com.example.poetry.ui.VoiceSheet;
+import com.example.poetry.util.Sliders;
 
 import java.util.List;
 import java.util.Locale;
@@ -221,12 +222,22 @@ public class MineFragment extends Fragment {
                 VoiceSettingsActivity.open(requireContext()));
 
         // 语速
-        float rate = store.getTtsConfig().getRate();
+        TtsConfig tts = store.getTtsConfig();
+        float rate = Sliders.snap(binding.rateSlider, tts.getRate());
+        if (rate != tts.getRate()) {
+            // 存下来的值可能不在滑杆的步进栅格上（0.92727274 就是从这儿来的）：交给
+            // setValue 会在首次布局时抛 IllegalStateException。就地收敛并写回，
+            // 坏值只修一次，之后界面、prefs、引擎三边都一致
+            store.updateTtsConfig(config -> config.setRate(rate));
+        }
         binding.rateSlider.setValue(rate);
         Speaker.get().setRate(rate);
         binding.rateSlider.addOnChangeListener((slider, value, fromUser) -> {
-            store.updateTtsConfig(config -> config.setRate(value));
-            Speaker.get().setRate(value);
+            // 拖出来的值也要收：Material 的拖拽栅格是坏的（见 Sliders 的类注释），
+            // 偏值留在滑杆里，这个页面下一次尺寸变化就会崩
+            float current = Sliders.snapAndPushBack(slider, value);
+            store.updateTtsConfig(config -> config.setRate(current));
+            Speaker.get().setRate(current);
         });
 
         // 字号

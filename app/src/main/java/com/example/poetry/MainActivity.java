@@ -2,11 +2,13 @@ package com.example.poetry;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -32,6 +34,7 @@ import com.example.poetry.fragment.MineFragment;
 import com.example.poetry.ui.Skin;
 import com.example.poetry.util.Chips;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -39,15 +42,23 @@ import java.util.List;
  */
 public class MainActivity extends AppCompatActivity {
 
+    /** 面板只预览这么多条命中，更多交给「查看全部」的整页列表 */
+    private static final int SEARCH_PREVIEW_LIMIT = 8;
+
     private ActivityMainBinding binding;
     private PoetryRepository repository;
     private UserStore store;
     private SearchResultAdapter searchAdapter;
+    private InputMethodManager imm;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** 当前已套用的皮肤；换肤后回到本页时据此重建 */
     private String appliedSkin;
     private Runnable searchRunnable;
+    /** 请求序号：只有最后一次请求的响应能上屏，慢回来的旧响应直接丢掉 */
+    private long searchSeq;
+    /** 面板里这批结果对应的关键词，点「查看全部」时带过去 */
+    private String lastKeyword;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +79,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         binding.bottomNav.setOnItemSelectedListener(item -> {
+            // 正在搜索时切页签：先把面板收掉，否则新页面被面板挡在后面看不见
+            closeSearchPanel();
             switchFragment(item.getItemId());
             return true;
         });
@@ -116,12 +129,18 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------------------------------------------- 搜索
 
     private void setupSearch() {
+        imm = getSystemService(InputMethodManager.class);
         searchAdapter = new SearchResultAdapter(poem -> {
             DetailActivity.open(this, poem);
             closeSearchPanel();
         });
         binding.searchResults.setLayoutManager(new LinearLayoutManager(this));
         binding.searchResults.setAdapter(searchAdapter);
+
+        // 放大镜和左右留白也要能点开搜索：EditText 自己只吃那一行文字的区域
+        binding.searchField.setOnClickListener(v -> focusSearchInput());
+        binding.panelCancel.setOnClickListener(v -> closeSearchPanel());
+        binding.searchAllRow.setOnClickListener(v -> openAllResults());
 
         binding.searchInput.addTextChangedListener(new TextWatcher() {
             @Override
@@ -131,6 +150,9 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (binding == null) {
+                    return;
+                }
                 binding.searchClear.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
                 scheduleSearch(s.toString());
             }
@@ -141,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // 面板只在获得焦点时展开（点搜索框、点热词都会走到这里）
         binding.searchInput.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 openSearchPanel();
@@ -149,6 +172,8 @@ public class MainActivity extends AppCompatActivity {
 
         binding.searchInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                // 键盘上按了「搜索」：立刻出结果，不再等剩下的防抖时间
+                cancelPendingSearch();
                 runSearch(binding.searchInput.getText().toString());
                 return true;
             }
@@ -157,8 +182,7 @@ public class MainActivity extends AppCompatActivity {
 
         binding.searchClear.setOnClickListener(v -> {
             binding.searchInput.setText("");
-            searchAdapter.submit(new java.util.ArrayList<>());
-            binding.searchEmpty.setVisibility(View.GONE);
+            showHotKeywords();
         });
 
         repository.hotKeywords(new Callback<List<String>>() {
@@ -174,6 +198,8 @@ public class MainActivity extends AppCompatActivity {
                     chip.setOnClickListener(v -> {
                         binding.searchInput.setText(word);
                         binding.searchInput.setSelection(word.length());
+                        // setText 已经排了一次防抖，这里别再查第二遍
+                        cancelPendingSearch();
                         runSearch(word);
                     });
                     binding.hotChips.addView(chip);
@@ -187,51 +213,145 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void scheduleSearch(@NonNull String keyword) {
-        if (searchRunnable != null) {
-            handler.removeCallbacks(searchRunnable);
+    /** 点搜索框这条路径：聚焦 + 展开面板 + 弹键盘，三件事一起做 */
+    private void focusSearchInput() {
+        if (binding == null) {
+            return;
         }
+        binding.searchInput.requestFocus();
+        openSearchPanel();
+        showIme();
+    }
+
+    /** 300ms 防抖，避免每输入一个字就扫一次全库 */
+    private void scheduleSearch(@NonNull String keyword) {
+        cancelPendingSearch();
         searchRunnable = () -> runSearch(keyword);
-        // 300ms 防抖，避免每输入一个字就扫一次全库
         handler.postDelayed(searchRunnable, 300);
     }
 
+    /** 关键词已经定下来（回车、点热词、关面板）时，把还没跑到的防抖撤掉 */
+    private void cancelPendingSearch() {
+        if (searchRunnable != null) {
+            handler.removeCallbacks(searchRunnable);
+            searchRunnable = null;
+        }
+    }
+
     private void runSearch(@NonNull String keyword) {
-        if (keyword.trim().isEmpty()) {
-            searchAdapter.submit(new java.util.ArrayList<>());
-            binding.searchEmpty.setVisibility(View.GONE);
+        if (binding == null) {
             return;
         }
-        // 搜索面板只展示少量命中，避免面板顶满屏幕
-        repository.search(keyword, 8, new Callback<List<Poem>>() {
+        final String query = keyword.trim();
+        if (query.isEmpty()) {
+            showHotKeywords();
+            return;
+        }
+        // 序号防串台：输入「李白」时「李」的响应可能后到，只认最后一次请求
+        final long seq = ++searchSeq;
+        repository.search(query, SEARCH_PREVIEW_LIMIT, new Callback<List<Poem>>() {
             @Override
             public void onData(@NonNull List<Poem> poems) {
-                if (binding == null) {
+                if (binding == null || seq != searchSeq) {
                     return;
                 }
+                lastKeyword = query;
+                boolean empty = poems.isEmpty();
                 searchAdapter.submit(poems);
-                binding.searchEmpty.setVisibility(poems.isEmpty() ? View.VISIBLE : View.GONE);
                 binding.panelTitle.setText(getString(R.string.search_result_count, poems.size()));
+                binding.hotChips.setVisibility(View.GONE);
+                binding.searchResults.setVisibility(empty ? View.GONE : View.VISIBLE);
+                binding.searchEmpty.setText(R.string.search_no_match);
+                binding.searchEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+                // 只有拿满了预览条数才谈得上「还有更多」：3 条结果进整页还是那 3 条
+                binding.searchAllRow.setVisibility(
+                        poems.size() >= SEARCH_PREVIEW_LIMIT ? View.VISIBLE : View.GONE);
             }
 
             @Override
             public void onError(@Nullable Throwable error) {
-                if (binding != null) {
-                    binding.searchEmpty.setVisibility(View.VISIBLE);
+                if (binding == null || seq != searchSeq) {
+                    return;
                 }
+                // 诗库没就绪导致的失败，跟「没有匹配」是两回事，别让用户以为是自己搜错了
+                searchAdapter.submit(new ArrayList<>());
+                binding.panelTitle.setText(R.string.search_failed);
+                binding.hotChips.setVisibility(View.GONE);
+                binding.searchResults.setVisibility(View.GONE);
+                binding.searchAllRow.setVisibility(View.GONE);
+                binding.searchEmpty.setText(R.string.search_failed_hint);
+                binding.searchEmpty.setVisibility(View.VISIBLE);
             }
         });
     }
 
+    /** 输入为空时的面板：摆热门搜索词，结果区和「查看全部」都收起来 */
+    private void showHotKeywords() {
+        if (binding == null) {
+            return;
+        }
+        lastKeyword = null;
+        searchAdapter.submit(new ArrayList<>());
+        binding.panelTitle.setText(R.string.hot_search);
+        binding.hotChips.setVisibility(View.VISIBLE);
+        binding.searchResults.setVisibility(View.GONE);
+        binding.searchAllRow.setVisibility(View.GONE);
+        binding.searchEmpty.setVisibility(View.GONE);
+    }
+
+    /** 面板只给 8 条预览，整页结果交给 PoemListActivity（同一个查询，条数放到 60） */
+    private void openAllResults() {
+        if (lastKeyword == null) {
+            return;
+        }
+        PoemListActivity.open(this, getString(R.string.search_all_title, lastKeyword),
+                PoemListActivity.MODE_SEARCH, lastKeyword);
+        closeSearchPanel();
+    }
+
     private void openSearchPanel() {
+        boolean alreadyOpen = binding.searchPanel.getVisibility() == View.VISIBLE;
         binding.searchPanel.setVisibility(View.VISIBLE);
+        // 面板独占内容区：让它按内容撑高会把诗库列表挤成 0 高，结果也滚不动
+        binding.fragmentContainer.setVisibility(View.GONE);
         searchBackCallback.setEnabled(true);
+        // 点搜索框和焦点回调会各调一次本方法；关键词没变就别再查第二遍
+        String keyword = binding.searchInput.getText().toString().trim();
+        if (alreadyOpen && keyword.equals(lastKeyword == null ? "" : lastKeyword)) {
+            return;
+        }
+        // 按当前输入重算一遍：面板关着的时候诗库可能刚重载过
+        if (keyword.isEmpty()) {
+            showHotKeywords();
+        } else {
+            runSearch(keyword);
+        }
     }
 
     private void closeSearchPanel() {
         binding.searchPanel.setVisibility(View.GONE);
+        binding.fragmentContainer.setVisibility(View.VISIBLE);
         binding.searchInput.clearFocus();
+        hideIme();
+        cancelPendingSearch();
         searchBackCallback.setEnabled(false);
+    }
+
+    private void showIme() {
+        if (imm != null) {
+            imm.showSoftInput(binding.searchInput, InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
+    /** 用 searchInput 自己的窗口 token 收键盘：此刻它已经 clearFocus，getCurrentFocus() 拿不到 */
+    private void hideIme() {
+        if (imm == null || binding == null) {
+            return;
+        }
+        IBinder token = binding.searchInput.getWindowToken();
+        if (token != null) {
+            imm.hideSoftInputFromWindow(token, 0);
+        }
     }
 
     // ---------------------------------------------------------------- 主题
@@ -258,6 +378,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 防抖任务还挂在主线程队列上：销毁后才触发会走到空的 binding
+        cancelPendingSearch();
         binding = null;
     }
 }

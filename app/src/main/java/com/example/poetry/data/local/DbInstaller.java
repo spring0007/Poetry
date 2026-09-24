@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.os.StatFs;
 import android.system.ErrnoException;
 import android.system.Os;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,6 +17,7 @@ import com.example.poetry.data.remote.DbDownloadPolicy;
 import com.example.poetry.data.remote.DbManifest;
 import com.example.poetry.data.remote.DownloadCallback;
 import com.example.poetry.data.remote.HttpDownloader;
+import com.example.poetry.util.LogUtil;
 
 import java.io.File;
 import java.util.concurrent.Callable;
@@ -47,8 +47,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * 中途被杀：碎片留着，目标没动，下次启动照旧能起（旧库或示例数据）。
  */
 public final class DbInstaller {
-
-    private static final String TAG = "DbInstaller";
 
     private static final String PREF = "poetry_db_install";
     private static final String KEY_SHA = "installed_sha";
@@ -158,16 +156,16 @@ public final class DbInstaller {
      */
     public void onAppStart() {
         if (DbDownloadPolicy.TRIGGER == DbDownloadPolicy.Trigger.MANUAL_ONLY) {
-            Log.i(TAG, "MANUAL_ONLY：不在启动时自动检查");
+            LogUtil.i("MANUAL_ONLY：不在启动时自动检查");
             return;
         }
         long last = prefs.getLong(KEY_LAST_CHECK, 0L);
         if (System.currentTimeMillis() - last < DbDownloadPolicy.CHECK_INTERVAL_MS) {
-            Log.i(TAG, "检查节流中，跳过");
+            LogUtil.i("检查节流中，跳过");
             return;
         }
         if (!DbDownloadPolicy.isOnline(context)) {
-            Log.i(TAG, "当前离线，跳过检查");
+            LogUtil.i("当前离线，跳过检查");
             return;
         }
         checkForUpdate(false, null);
@@ -226,7 +224,7 @@ public final class DbInstaller {
      */
     public void startDownload() {
         if (running) {
-            Log.i(TAG, "已有任务在跑，忽略这次开始下载");
+            LogUtil.i("已有任务在跑，忽略这次开始下载");
             return;
         }
         running = true;
@@ -277,7 +275,7 @@ public final class DbInstaller {
         });
 
         if (meta == null) {
-            Log.i(TAG, "本地没有可用的诗库");
+            LogUtil.i("本地没有可用的诗库");
             pendingManifest = null;
             if (!DbDownloadPolicy.isOnline(context)) {
                 publish(build(DbStatus.State.IDLE, 0L, -1L, null));
@@ -297,7 +295,7 @@ public final class DbInstaller {
         boolean foreign = isForeign(meta);
         String localSha = foreign ? null : prefs.getString(KEY_SHA, null);
         if (foreign) {
-            Log.i(TAG, "本地库来源不明（" + meta + "），不采信记录");
+            LogUtil.i("本地库来源不明（" + meta + "），不采信记录");
         }
         return fetchAndCompare(localSha, meta.subset, meta.builtAt);
     }
@@ -311,7 +309,7 @@ public final class DbInstaller {
                                     @Nullable String localBuiltAt) throws ApiException {
         if (!DbDownloadPolicy.isOnline(context)) {
             // 断网时不该去拉 version.json：一次连接超时是 15 秒，冷启动路径上不该有它。
-            Log.i(TAG, "离线，跳过版本检查");
+            LogUtil.i("离线，跳过版本检查");
             publish(build(DbStatus.State.IDLE, 0L, -1L, null));
             return true;
         }
@@ -331,7 +329,7 @@ public final class DbInstaller {
         String fallbackDbUrl = DbDownloadPolicy.MANIFEST_URL
                 .replace("version.json", DatabaseProvider.POETRY_DB);
         DbManifest manifest = DbManifest.parse(text, fallbackDbUrl);
-        Log.i(TAG, "服务端 " + manifest + "，本地 sha=" + (localSha == null
+        LogUtil.i("服务端 " + manifest + "，本地 sha=" + (localSha == null
                 ? "无" : HttpDownloader.sha8(localSha)) + " subset=" + localSubset);
         prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply();
 
@@ -386,7 +384,7 @@ public final class DbInstaller {
         checkSpace(target, manifest.bytes);
 
         long already = part.exists() ? part.length() : 0L;
-        Log.i(TAG, "开始下载 " + manifest.url + " -> " + part.getName()
+        LogUtil.i("开始下载 " + manifest.url + " -> " + part.getName()
                 + (already > 0 ? "（续传自 " + already + " 字节）" : ""));
 
         final HttpDownloader downloader = new HttpDownloader();
@@ -428,7 +426,7 @@ public final class DbInstaller {
             if (error != null) {
                 if (error.getCode() == ApiException.CANCELLED) {
                     // 取消不是失败：退回「可下载」，碎片留着续传
-                    Log.i(TAG, "下载已取消，碎片保留");
+                    LogUtil.i("下载已取消，碎片保留");
                     publish(build(DbStatus.State.NEEDS_DOWNLOAD, 0L, manifest.bytes, null));
                 } else {
                     fail(error);
@@ -496,7 +494,7 @@ public final class DbInstaller {
                 .putBoolean(KEY_SUBSET, manifest.isSubset)
                 .putLong(KEY_SIZE, target.length())
                 .apply();
-        Log.i(TAG, "诗库已安装: " + target.getAbsolutePath()
+        LogUtil.i("诗库已安装: " + target.getAbsolutePath()
                 + " ready=" + ready + " " + target.length() + " 字节");
         if (!ready) {
             throw new ApiException(ApiException.SCHEMA, "诗库已替换但打不开");
@@ -534,7 +532,7 @@ public final class DbInstaller {
     }
 
     private void fail(@NonNull ApiException error) {
-        Log.w(TAG, "诗库操作失败: " + error.getMessage(), error);
+        LogUtil.w("诗库操作失败: " + error.getMessage(), error);
         pendingManifest = null;
         publish(build(DbStatus.State.FAILED, 0L, -1L, error.getMessage()));
     }

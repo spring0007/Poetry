@@ -2,11 +2,11 @@ package com.example.poetry.data.local;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 import com.example.poetry.data.remote.ApiException;
+import com.example.poetry.util.LogUtil;
 
 import java.io.File;
 import java.util.HashSet;
@@ -28,8 +28,6 @@ import java.util.Set;
  * 正好是 {@code DbInstaller} 要往界面报的那几种，为它再搭一套平行异常层次没有意义。
  */
 public final class DbValidator {
-
-    private static final String TAG = "DbValidator";
 
     /** 缺了任何一张，这个库都不是本 App 的库 */
     private static final String[] REQUIRED_TABLES = {
@@ -73,7 +71,7 @@ public final class DbValidator {
             try {
                 probe.close();
             } catch (Exception e) {
-                Log.w(TAG, "关闭探针句柄失败", e);
+                LogUtil.w("关闭探针句柄失败", e);
             }
         }
     }
