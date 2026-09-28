@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.poetry.AuthorDetailActivity;
 import com.example.poetry.PoemListActivity;
 import com.example.poetry.R;
 import com.example.poetry.adapter.AuthorAdapter;
@@ -196,9 +197,9 @@ public class CategoryFragment extends Fragment {
     private void bindAuthors() {
         binding.authorHeader.sectionTitle.setText(R.string.section_by_author);
         binding.authorHeader.sectionMeta.setText(R.string.section_by_author_meta);
+        // 热门作者 → 作者详情页（简介 + 代表作品），与作品详情页的导航方式一致
         authorAdapter = new AuthorAdapter(author ->
-                PoemListActivity.open(requireContext(), author.getName() + " 作品集",
-                        PoemListActivity.MODE_AUTHOR, String.valueOf(author.getId())));
+                AuthorDetailActivity.open(requireContext(), author));
         binding.authorList.setLayoutManager(new LinearLayoutManager(requireContext(),
                 LinearLayoutManager.HORIZONTAL, false));
         binding.authorList.setAdapter(authorAdapter);

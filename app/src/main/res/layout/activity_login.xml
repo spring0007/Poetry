@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 登录页：印章标识 + 微信授权主路径 + 模拟登录（未配置 AppID 时可见） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:orientation="vertical">
+
+    <!-- 工具条：只有返回键 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_2"
+        android:paddingTop="@dimen/space_2"
+        android:paddingEnd="@dimen/space_2"
+        android:paddingBottom="@dimen/space_2">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            style="@style/Widget.Poetry.IconButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/page_margin"
+            android:paddingTop="@dimen/space_10"
+            android:paddingEnd="@dimen/page_margin"
+            android:paddingBottom="@dimen/space_8">
+
+            <!-- 品牌印：与 App 图标同一意象（朱红方印「诗」） -->
+            <TextView
+                android:id="@+id/loginSeal"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="?attr/colorPrimary"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/login_seal_char"
+                android:textColor="@color/on_primary"
+                android:textSize="44sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_4"
+                android:text="@string/login_title"
+                android:textAppearance="@style/TextAppearance.Poetry.PageTitle" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_1"
+                android:text="@string/login_slogan"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+
+            <!-- 微信授权（主路径） -->
+            <Button
+                android:id="@+id/loginWechat"
+                style="@style/Widget.Poetry.PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="@dimen/space_8"
+                android:backgroundTint="@color/wx_green"
+                android:drawablePadding="@dimen/space_2"
+                android:text="@string/login_wechat"
+                android:textColor="@color/white" />
+
+            <!-- 模拟登录（未配置 AppID 时的可切换路径，配置后自动隐藏） -->
+            <Button
+                android:id="@+id/loginMock"
+                style="@style/Widget.Poetry.ToolButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="@dimen/space_3"
+                android:text="@string/login_mock" />
+
+            <TextView
+                android:id="@+id/loginMockNote"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_1"
+                android:text="@string/login_mock_note"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                android:gravity="center"
+                android:text="@string/login_agreement"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

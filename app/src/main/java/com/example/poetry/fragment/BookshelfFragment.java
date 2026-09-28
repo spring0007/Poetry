@@ -37,6 +37,10 @@ import java.util.Set;
 
 /**
  * 书架页：统计概览 + 继续朗读 + 视图（网格 / 列表）与排序切换 + 收藏列表 + 空态。
+ * <p>
+ * 打开书架默认就是整理态：网格卡右上角、列表行右侧直接带 ✕，点 ✕ 弹二次确认后才真正
+ * 移出，移出后立刻重刷列表，并同步本地收藏状态（详情页的 ♡ 也会跟着变）。
+ * 顶部只有「完成」与「清空书架」两个按钮：「完成」收起全部 ✕，长按任意卡片可重新展开。
  */
 public class BookshelfFragment extends Fragment {
 
@@ -49,11 +53,27 @@ public class BookshelfFragment extends Fragment {
 
     /** true = 网格视图 */
     private boolean gridMode = true;
+    /** true = 整理态（卡片上直接显示 ✕）；默认打开，点「完成」收起 */
+    private boolean editMode = true;
     /** 书架内搜索关键字，空串表示不过滤 */
     private String query = "";
 
     /** 排序：0 最近 / 1 体裁 / 2 热度 */
     private int sortMode = 0;
+
+    /**
+     * 收藏变更监听：详情页收藏/取消后，书架页无需等到 onResume 才刷新。
+     * 与 DetailActivity 走的是同一份 {@link UserStore} 单例。
+     */
+    private final UserStore.FavoriteListener favoriteListener = new UserStore.FavoriteListener() {
+        @Override
+        public void onFavoritesChanged() {
+            // isAdded() 不能省：回调可能在 Fragment 已 detach 但 binding 还没置空时到达
+            if (binding != null && isAdded()) {
+                refresh();
+            }
+        }
+    };
 
     @Nullable
     @Override
@@ -91,6 +111,7 @@ public class BookshelfFragment extends Fragment {
             }
         });
 
+        store.addFavoriteListener(favoriteListener);
         refresh();
     }
 
@@ -103,31 +124,52 @@ public class BookshelfFragment extends Fragment {
         }
     }
 
+    @Override
+    public void onDestroyView() {
+        store.removeFavoriteListener(favoriteListener);
+        super.onDestroyView();
+        binding = null;
+    }
+
     // ---------------------------------------------------------------- 初始化
 
     private void setupAdapters() {
         gridAdapter = new PoemCardAdapter(new PoemCardAdapter.Listener() {
             @Override
             public void onPoemClick(@NonNull Poem poem) {
+                // 整理态下卡片照常可点开：删除只认卡片上的 ✕，点正文不会误删也不会白点
                 DetailActivity.open(requireContext(), poem);
             }
 
             @Override
             public void onFavoriteClick(@NonNull Poem poem) {
-                removePoem(poem);
+                confirmRemove(poem);
+            }
+        });
+        gridAdapter.setDeleteListener(new PoemCardAdapter.DeleteListener() {
+            @Override
+            public void onDeleteClick(@NonNull Poem poem) {
+                confirmRemove(poem);
+            }
+
+            @Override
+            public void onLongPress(@NonNull Poem poem) {
+                setEditMode(true);
             }
         });
         listAdapter = new PoemRowAdapter(new PoemRowAdapter.Listener() {
             @Override
             public void onPoemClick(@NonNull Poem poem) {
+                // 同上：列表行的 ✕ 才是删除入口，点行本身是看详情
                 DetailActivity.open(requireContext(), poem);
             }
 
             @Override
             public void onRemoveClick(@NonNull Poem poem) {
-                removePoem(poem);
+                confirmRemove(poem);
             }
         });
+        listAdapter.setEditListener(poem -> setEditMode(true));
     }
 
     /** 搜索框、清空书架，以及列表视图上的收藏时间 */
@@ -165,10 +207,46 @@ public class BookshelfFragment extends Fragment {
                 .setNegativeButton(R.string.action_cancel, null)
                 .setPositiveButton(R.string.action_confirm, (dialog, which) -> {
                     store.clearFavorites();
+                    setEditMode(false);
                     Toast.makeText(requireContext(), R.string.shelf_cleared, Toast.LENGTH_SHORT).show();
                     refresh();
                 })
                 .show();
+    }
+
+    /**
+     * 单首移出前的二次确认。
+     *
+     * <p>收藏只存在本机、没有云端备份，删掉就找不回来，所以这里必须拦一道；
+     * 确认后才写本地数据并重刷列表。
+     */
+    private void confirmRemove(@NonNull Poem poem) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.shelf_remove_title)
+                .setMessage(getString(R.string.shelf_remove_confirm, poem.getTitle()))
+                .setNegativeButton(R.string.action_cancel, null)
+                .setPositiveButton(R.string.action_confirm, (dialog, which) -> {
+                    repository.removeFavorite(poem.getId());
+                    Toast.makeText(requireContext(), R.string.shelf_removed, Toast.LENGTH_SHORT).show();
+                    refresh();
+                    // 删空了就没必要继续停在编辑态
+                    if (repository.favorites().isEmpty()) {
+                        setEditMode(false);
+                    }
+                })
+                .show();
+    }
+
+    /** 整理态开关：让两个适配器同步显隐删除入口 */
+    private void setEditMode(boolean enabled) {
+        editMode = enabled;
+        gridAdapter.setDeleteMode(enabled);
+        listAdapter.setDeleteMode(enabled);
+        binding.btnDone.setSelected(enabled);
+        binding.btnDone.setAlpha(enabled ? 1f : 0.55f);
+        binding.shelfFooter.setText(enabled
+                ? getString(R.string.shelf_manage_hint)
+                : getString(R.string.shelf_footer, favorites().size()));
     }
 
     /** 行卡第二行：收藏时间 + 作者 */
@@ -207,6 +285,19 @@ public class BookshelfFragment extends Fragment {
 
     private void setupViewToggle() {
         updateToggleState();
+        binding.btnDone.setSelected(editMode);
+        binding.btnDone.setAlpha(editMode ? 1f : 0.55f);
+        // 打开书架就直接是整理态，所以这里不再需要一个「编辑」入口；
+        // 「完成」负责收起全部 ✕，再点一次（或长按任意卡片）可重新展开
+        binding.btnDone.setOnClickListener(v -> {
+            if (editMode) {
+                setEditMode(false);
+                Toast.makeText(requireContext(), R.string.shelf_done_hint,
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                setEditMode(true);
+            }
+        });
         binding.btnGrid.setOnClickListener(v -> {
             gridMode = true;
             store.setShelfGrid(true);
@@ -229,12 +320,6 @@ public class BookshelfFragment extends Fragment {
     }
 
     // ---------------------------------------------------------------- 数据
-
-    private void removePoem(@NonNull Poem poem) {
-        repository.removeFavorite(poem.getId());
-        Toast.makeText(requireContext(), R.string.shelf_removed, Toast.LENGTH_SHORT).show();
-        refresh();
-    }
 
     @NonNull
     private List<Poem> favorites() {
@@ -287,10 +372,17 @@ public class BookshelfFragment extends Fragment {
         boolean hasAny = !repository.favorites().isEmpty();
         binding.shelfSearch.setVisibility(hasAny ? View.VISIBLE : View.GONE);
         binding.btnClear.setVisibility(hasAny ? View.VISIBLE : View.GONE);
+        binding.btnDone.setVisibility(hasAny ? View.VISIBLE : View.GONE);
+        // 书架空了就退出编辑态，免得留一个点不动的「完成」按钮
+        if (!hasAny && editMode) {
+            setEditMode(false);
+        }
         binding.emptyState.getRoot().setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.shelfList.setVisibility(empty ? View.GONE : View.VISIBLE);
         binding.resumeCard.setVisibility(empty ? View.GONE : View.VISIBLE);
-        binding.shelfFooter.setText(getString(R.string.shelf_footer, list.size()));
+        binding.shelfFooter.setText(editMode
+                ? getString(R.string.shelf_edit_hint)
+                : getString(R.string.shelf_footer, list.size()));
 
         if (!empty) {
             Poem last = list.get(0);
@@ -303,6 +395,9 @@ public class BookshelfFragment extends Fragment {
                     last.getAuthorName(), PoemKind.fromSource(last.getSrcName()).getLabel(), percent));
         }
 
+        gridAdapter.setDeleteMode(editMode);
+        listAdapter.setDeleteMode(editMode);
+
         if (gridMode) {
             binding.shelfList.setLayoutManager(new GridLayoutManager(requireContext(), 2));
             gridAdapter.submit(list);
@@ -312,11 +407,5 @@ public class BookshelfFragment extends Fragment {
             listAdapter.submit(list);
             binding.shelfList.setAdapter(listAdapter);
         }
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
     }
 }

@@ -19,8 +19,10 @@ import androidx.fragment.app.Fragment;
 
 import com.example.poetry.AboutActivity;
 import com.example.poetry.HistoryActivity;
+import com.example.poetry.LoginActivity;
 import com.example.poetry.ProfileActivity;
 import com.example.poetry.SkinActivity;
+import com.example.poetry.StatsActivity;
 import com.example.poetry.R;
 import com.example.poetry.VoiceSettingsActivity;
 import com.example.poetry.data.DbStatus;
@@ -30,6 +32,7 @@ import com.example.poetry.data.local.UserStore;
 import com.example.poetry.data.model.TtsConfig;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.databinding.FragmentMineBinding;
+import com.example.poetry.ui.Night;
 import com.example.poetry.ui.Skin;
 import com.example.poetry.media.Speaker;
 import com.example.poetry.ui.VoiceSheet;
@@ -100,6 +103,18 @@ public class MineFragment extends Fragment {
     // ---------------------------------------------------------------- 资料
 
     private void setupProfile() {
+        // 未登录：资料卡整体变成登录入口；登录后展示资料并照旧跳个人信息页
+        if (!store.isLoggedIn()) {
+            binding.profileName.setText(R.string.me_not_logged_in);
+            binding.profileAvatar.setText(R.string.login_seal_char);
+            binding.profileId.setText(R.string.me_login_hint);
+            binding.profileLevel.setText("");
+            View.OnClickListener login = v -> LoginActivity.open(requireContext());
+            binding.profileEdit.setOnClickListener(login);
+            binding.profileAvatar.setOnClickListener(login);
+            return;
+        }
+
         String nickname = store.getNickname();
         String shown = nickname.isEmpty() ? getString(R.string.me_nickname) : nickname;
         binding.profileName.setText(shown);
@@ -259,10 +274,11 @@ public class MineFragment extends Fragment {
         binding.rowDark.switchControl.setChecked(
                 store.getNightMode() == UserStore.NIGHT_ON);
         binding.rowDark.switchControl.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            store.setNightMode(isChecked ? UserStore.NIGHT_ON : UserStore.NIGHT_OFF);
-            AppCompatDelegate.setDefaultNightMode(isChecked
-                    ? AppCompatDelegate.MODE_NIGHT_YES
-                    : AppCompatDelegate.MODE_NIGHT_NO);
+            // 写偏好 + 设默认模式 + 必要时重建当前页，三步都收在 Night 里：
+            // 只调 setDefaultNightMode 时，当前页未必会重建，表现就是「拨了开关界面不变」
+            Night.setEnabled(getActivity(), store, isChecked);
+            Toast.makeText(requireContext(), isChecked
+                    ? R.string.night_on_msg : R.string.night_off_msg, Toast.LENGTH_SHORT).show();
         });
 
         // 自动朗读
@@ -380,17 +396,23 @@ public class MineFragment extends Fragment {
         binding.moreHeader.sectionMeta.setText("");
 
         bindRow(binding.rowHistory, R.string.more_history, R.string.more_history_sub);
+        bindRow(binding.rowStats, R.string.stats_title, R.string.stats_sub);
         bindRow(binding.rowDownload, R.string.more_download, R.string.more_download_sub);
         bindRow(binding.rowSkin, R.string.more_skin, R.string.more_skin_sub);
         bindRow(binding.rowAbout, R.string.more_about, R.string.more_about_sub);
 
         binding.rowHistory.rowValue.setText(getString(R.string.more_history_count,
                 repository.history().size()));
+        binding.rowStats.rowValue.setText(getString(R.string.stats_value,
+                store.getActiveDays(), store.getPlayCount(),
+                repository.favorites().size()));
         binding.rowSkin.rowValue.setText(Skin.nameOf(store.getSkinId()));
         binding.rowAbout.rowValue.setText(R.string.more_about_sub);
 
         binding.rowHistory.getRoot().setOnClickListener(v ->
                 HistoryActivity.open(requireContext()));
+        binding.rowStats.getRoot().setOnClickListener(v ->
+                StatsActivity.open(requireContext()));
         binding.rowDownload.getRoot().setOnClickListener(v ->
                 VoiceSettingsActivity.open(requireContext()));
         binding.rowSkin.getRoot().setOnClickListener(v ->

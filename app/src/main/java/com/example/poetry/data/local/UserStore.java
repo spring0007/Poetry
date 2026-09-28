@@ -2,10 +2,13 @@ package com.example.poetry.data.local;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.example.poetry.data.model.DayStat;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.TtsConfig;
 
@@ -21,11 +24,17 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -46,6 +55,10 @@ import java.util.concurrent.Executors;
  *   "progress": { "诗id": 百分比 },
  *   "checkin":  { dates[], total },
  *   "stats":    { playCount },
+ *   "daily":    { "yyyy-MM-dd": { playCount, favoriteCount, unfavoriteCount,
+ *                                 plays:      { "诗id": { count, title, author, lastAt } },
+ *                                 favorites:  { "诗id": { count, title, author, lastAt } },
+ *                                 unfavorites:{ "诗id": { count, title, author, lastAt } } } },
  *   "prefs":    { nightMode, fontScale, verticalReading, autoPlay, continuousPlay,
  *                 wifiOnly, skin, shelfGrid, shelfSort },
  *   "tts":      { ... },
@@ -221,7 +234,7 @@ public final class UserStore {
     private void ensureSections() {
         synchronized (lock) {
             for (String name : new String[]{"profile", "checkin", "stats", "prefs",
-                    "readAt", "progress"}) {
+                    "readAt", "progress", "session", "daily"}) {
                 if (root.optJSONObject(name) == null) {
                     try {
                         root.put(name, new JSONObject());
@@ -390,6 +403,42 @@ public final class UserStore {
 
     // ------------------------------------------------------------ 收藏 / 书架
 
+    /** 收藏变化监听：详情页收藏/取消后，书架等页面可以立刻跟着变 */
+    public interface FavoriteListener {
+        void onFavoritesChanged();
+    }
+
+    private final List<FavoriteListener> favoriteListeners = new CopyOnWriteArrayList<>();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    public void addFavoriteListener(@NonNull FavoriteListener listener) {
+        if (!favoriteListeners.contains(listener)) {
+            favoriteListeners.add(listener);
+        }
+    }
+
+    public void removeFavoriteListener(@NonNull FavoriteListener listener) {
+        favoriteListeners.remove(listener);
+    }
+
+    /**
+     * 派发收藏变更。调用方几乎都在主线程；万一哪天从后台线程改了收藏，
+     * 这里兜一层切回主线程，免得监听器直接去动 View 崩掉。
+     */
+    private void notifyFavoritesChanged() {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            dispatchFavoritesChanged();
+        } else {
+            mainHandler.post(this::dispatchFavoritesChanged);
+        }
+    }
+
+    private void dispatchFavoritesChanged() {
+        for (FavoriteListener listener : favoriteListeners) {
+            listener.onFavoritesChanged();
+        }
+    }
+
     @NonNull
     public List<Poem> getFavorites() {
         return readPoems("favorites");
@@ -411,24 +460,35 @@ public final class UserStore {
             if (list.get(i).getId() == poem.getId()) {
                 list.remove(i);
                 writePoems("favorites", list);
+                recordUnfavoriteLocked(poem);
+                notifyFavoritesChanged();
                 return false;
             }
         }
         poem.setFavoriteAt(System.currentTimeMillis());
         list.add(0, poem);
         writePoems("favorites", list);
+        recordFavoriteLocked(poem);
+        notifyFavoritesChanged();
         return true;
     }
 
     public void removeFavorite(long poemId) {
         List<Poem> list = getFavorites();
+        Poem target = null;
         for (int i = 0; i < list.size(); i++) {
             if (list.get(i).getId() == poemId) {
+                target = list.get(i);
                 list.remove(i);
                 break;
             }
         }
+        if (target == null) {
+            return;
+        }
         writePoems("favorites", list);
+        recordUnfavoriteLocked(target);
+        notifyFavoritesChanged();
     }
 
     public void clearFavorites() {
@@ -440,6 +500,7 @@ public final class UserStore {
             }
         }
         save();
+        notifyFavoritesChanged();
     }
 
     // ------------------------------------------------------------ 历史 / 进度
@@ -671,6 +732,253 @@ public final class UserStore {
         return getPlayCount() * 2.0f / 60.0f;
     }
 
+    // ------------------------------------------------------------ 每日统计
+
+    /** daily 分区最多保留多少天；再早的会被丢掉，免得 JSON 无限增长 */
+    private static final int DAILY_KEEP_DAYS = 90;
+
+    @NonNull
+    private JSONObject daily() {
+        return section("daily");
+    }
+
+    @NonNull
+    private JSONObject day(@NonNull String date) {
+        JSONObject obj = daily().optJSONObject(date);
+        if (obj == null) {
+            obj = new JSONObject();
+            try {
+                daily().put(date, obj);
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+        return obj;
+    }
+
+    /** 记一次朗读：同一天里同一首只累加次数，不重复列条目 */
+    public void recordPlay(@NonNull Poem poem) {
+        synchronized (lock) {
+            JSONObject obj = day(today());
+            try {
+                obj.put("playCount", obj.optInt("playCount", 0) + 1);
+                obj.put("plays", bumpMap(obj.optJSONObject("plays"), poem));
+            } catch (JSONException ignored) {
+                // ignore
+            }
+            pruneDailyLocked();
+        }
+        save();
+    }
+
+    /** 记一次收藏。调用方必须已经持有 lock */
+    private void recordFavoriteLocked(@NonNull Poem poem) {
+        JSONObject obj = day(today());
+        try {
+            obj.put("favoriteCount", obj.optInt("favoriteCount", 0) + 1);
+            obj.put("favorites", bumpMap(obj.optJSONObject("favorites"), poem));
+        } catch (JSONException ignored) {
+            // ignore
+        }
+    }
+
+    /** 记一次取消收藏：计数 +1，记进 unfavorites，并把当天收藏索引里的这一条去掉 */
+    private void recordUnfavoriteLocked(@NonNull Poem poem) {
+        JSONObject obj = day(today());
+        try {
+            obj.put("unfavoriteCount", obj.optInt("unfavoriteCount", 0) + 1);
+            obj.put("unfavorites", bumpMap(obj.optJSONObject("unfavorites"), poem));
+            JSONObject favorites = obj.optJSONObject("favorites");
+            if (favorites != null) {
+                favorites.remove(String.valueOf(poem.getId()));
+            }
+        } catch (JSONException ignored) {
+            // ignore
+        }
+    }
+
+    /**
+     * 按诗词 ID 建索引累加次数：{@code { "诗id": { count, title, author, lastAt } }}。
+     * <p>同一天、同一首诗只累加 {@code count}，不会重复建条目；后台拿到 daily
+     * 之后直接以诗 ID 为维度出统计即可，不需要再反推时间戳。
+     */
+    @NonNull
+    private static JSONObject bumpMap(@Nullable JSONObject source, @NonNull Poem poem) {
+        JSONObject map = source == null ? new JSONObject() : source;
+        String key = String.valueOf(poem.getId());
+        JSONObject item = map.optJSONObject(key);
+        long now = System.currentTimeMillis();
+        try {
+            if (item == null) {
+                item = new JSONObject();
+                item.put("count", 1);
+            } else {
+                item.put("count", item.optInt("count", 0) + 1);
+            }
+            item.put("title", poem.getTitle());
+            item.put("author", poem.getAuthorName());
+            item.put("lastAt", now);
+            map.put(key, item);
+        } catch (JSONException ignored) {
+            // ignore
+        }
+        return map;
+    }
+
+    /** 只留下最近 {@link #DAILY_KEEP_DAYS} 天；yyyy-MM-dd 的字典序就是时间序 */
+    private void pruneDailyLocked() {
+        JSONObject daily = daily();
+        List<String> dates = new ArrayList<>();
+        Iterator<String> keys = daily.keys();
+        while (keys.hasNext()) {
+            dates.add(keys.next());
+        }
+        if (dates.size() <= DAILY_KEEP_DAYS) {
+            return;
+        }
+        Collections.sort(dates);
+        for (int i = 0; i < dates.size() - DAILY_KEEP_DAYS; i++) {
+            daily.remove(dates.get(i));
+        }
+    }
+
+    /** 最近若干天的统计，日期倒序（今天排在最前） */
+    @NonNull
+    public List<DayStat> getDailyStats(int maxDays) {
+        List<DayStat> result = new ArrayList<>();
+        synchronized (lock) {
+            List<String> dates = new ArrayList<>();
+            Iterator<String> keys = daily().keys();
+            while (keys.hasNext()) {
+                dates.add(keys.next());
+            }
+            Collections.sort(dates, Collections.<String>reverseOrder());
+            int limit = maxDays <= 0 ? dates.size() : Math.min(maxDays, dates.size());
+            for (int i = 0; i < limit; i++) {
+                String date = dates.get(i);
+                JSONObject obj = daily().optJSONObject(date);
+                if (obj == null) {
+                    continue;
+                }
+                DayStat stat = new DayStat(date);
+                stat.playCount = obj.optInt("playCount", 0);
+                stat.favoriteCount = obj.optInt("favoriteCount", 0);
+                stat.unfavoriteCount = obj.optInt("unfavoriteCount", 0);
+                readSection(obj, "plays", stat.plays);
+                readSection(obj, "favorites", stat.favorites);
+                readSection(obj, "unfavorites", stat.unfavorites);
+                result.add(stat);
+            }
+        }
+        return result;
+    }
+
+    /** 读某一天的某个索引；老版本存的是数组，这里一并兼容 */
+    private static void readSection(@NonNull JSONObject dayObj, @NonNull String field,
+                                    @NonNull List<DayStat.Item> out) {
+        JSONObject map = dayObj.optJSONObject(field);
+        if (map != null) {
+            readMap(map, out);
+            return;
+        }
+        JSONArray arr = dayObj.optJSONArray(field);
+        if (arr != null) {
+            readArray(arr, out);
+        }
+    }
+
+    /** 读 { "诗id": { count, title, author, lastAt } } */
+    private static void readMap(@NonNull JSONObject map, @NonNull List<DayStat.Item> out) {
+        Iterator<String> keys = map.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            JSONObject item = map.optJSONObject(key);
+            if (item == null) {
+                continue;
+            }
+            out.add(new DayStat.Item(parseId(key), item.optString("title"),
+                    item.optString("author"), item.optInt("count", 1),
+                    item.optLong("lastAt", 0L)));
+        }
+    }
+
+    /** 老格式 [ { id, title, author, count, lastAt } ] */
+    private static void readArray(@NonNull JSONArray arr, @NonNull List<DayStat.Item> out) {
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject item = arr.optJSONObject(i);
+            if (item == null) {
+                continue;
+            }
+            out.add(new DayStat.Item(item.optLong("id", -1L), item.optString("title"),
+                    item.optString("author"), item.optInt("count", 1),
+                    item.optLong("lastAt", 0L)));
+        }
+    }
+
+    private static long parseId(@Nullable String key) {
+        if (key == null) {
+            return -1L;
+        }
+        try {
+            return Long.parseLong(key);
+        } catch (NumberFormatException e) {
+            return -1L;
+        }
+    }
+
+    /**
+     * 跨日期按诗词 ID 汇总朗读次数，次数多的排前面。
+     *
+     * <p>后台要「哪首诗最受欢迎」这类内容偏好时，直接用这份结果即可，
+     * 它是从 daily 里现算的，不额外占存储。
+     */
+    @NonNull
+    public List<DayStat.Item> getTopPlayed(int limit) {
+        List<DayStat> days = getDailyStats(0);
+        Map<Long, DayStat.Item> merged = new LinkedHashMap<>();
+        for (DayStat day : days) {
+            for (DayStat.Item item : day.plays) {
+                DayStat.Item old = merged.get(item.id);
+                if (old == null) {
+                    merged.put(item.id, new DayStat.Item(item.id, item.title, item.author,
+                            item.count, item.lastAt));
+                } else {
+                    merged.put(item.id, new DayStat.Item(item.id, item.title, item.author,
+                            old.count + item.count, Math.max(old.lastAt, item.lastAt)));
+                }
+            }
+        }
+        List<DayStat.Item> result = new ArrayList<>(merged.values());
+        Collections.sort(result, new Comparator<DayStat.Item>() {
+            @Override
+            public int compare(DayStat.Item a, DayStat.Item b) {
+                if (a.count != b.count) {
+                    return b.count - a.count;
+                }
+                return Long.valueOf(b.lastAt).compareTo(Long.valueOf(a.lastAt));
+            }
+        });
+        if (limit > 0 && result.size() > limit) {
+            return new ArrayList<>(result.subList(0, limit));
+        }
+        return result;
+    }
+
+    /** 有朗读记录的日期数 */
+    public int getActiveDays() {
+        synchronized (lock) {
+            int days = 0;
+            Iterator<String> keys = daily().keys();
+            while (keys.hasNext()) {
+                JSONObject obj = daily().optJSONObject(keys.next());
+                if (obj != null && obj.optInt("playCount", 0) > 0) {
+                    days++;
+                }
+            }
+            return days;
+        }
+    }
+
     // ------------------------------------------------------------ 打卡
 
     /** 今天的日期串（yyyy-MM-dd），日历与打卡都以它为准 */
@@ -804,6 +1112,80 @@ public final class UserStore {
         putProfile("signature", signature == null ? "" : signature.trim());
     }
 
+    // ------------------------------------------------------------ 登录会话
+
+    /**
+     * 是否已登录。微信授权与模拟登录一视同仁，都落在这份 JSON 里，
+     * 因此断网、换机（配合备份导出）都能带着登录态走。
+     */
+    public boolean isLoggedIn() {
+        return session().optBoolean("loggedIn", false);
+    }
+
+    /** 登录方式：wechat / mock；未登录返回空串 */
+    @NonNull
+    public String getLoginProvider() {
+        return session().optString("provider", "");
+    }
+
+    /** 登录昵称：微信授权返回的昵称，或模拟登录生成的「诗友 xxxx」 */
+    @NonNull
+    public String getLoginNickname() {
+        return session().optString("nickname", "");
+    }
+
+    /** 账号唯一标识：微信 openId（真实授权后由后端换取）或模拟 id */
+    @NonNull
+    public String getLoginUid() {
+        return session().optString("uid", "");
+    }
+
+    public long getLoginAt() {
+        return session().optLong("loginAt", 0L);
+    }
+
+    /**
+     * 记录一次登录。个人资料里的昵称还是空的就把登录昵称带过去，
+     * 登录完「我的」页立刻是可用的样子，而不是一片空白。
+     */
+    public void setLogin(@NonNull String provider, @NonNull String uid, @Nullable String nickname) {
+        synchronized (lock) {
+            try {
+                JSONObject s = session();
+                s.put("loggedIn", true);
+                s.put("provider", provider);
+                s.put("uid", uid);
+                s.put("nickname", nickname == null ? "" : nickname);
+                s.put("loginAt", System.currentTimeMillis());
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+        save();
+    }
+
+    public void logout() {
+        synchronized (lock) {
+            try {
+                JSONObject s = session();
+                s.put("loggedIn", false);
+                s.put("provider", "");
+                s.put("uid", "");
+                s.put("nickname", "");
+                s.put("loginAt", 0L);
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+        save();
+    }
+
+    /** 会话分区，同样随 user_data.json 备份导出 */
+    @NonNull
+    private JSONObject session() {
+        return section("session");
+    }
+
     /** 阅读偏好标签，如「唐诗 / 山水」 */
     @NonNull
     public List<String> getTasteList() {
@@ -862,6 +1244,15 @@ public final class UserStore {
 
     public void setContinuousPlay(boolean enabled) {
         putPref("continuousPlay", enabled);
+    }
+
+    /** 详情页：一首读完自动重播（默认关闭） */
+    public boolean isLoopPlay() {
+        return prefs().optBoolean("loopPlay", false);
+    }
+
+    public void setLoopPlay(boolean enabled) {
+        putPref("loopPlay", enabled);
     }
 
     /** 仅在 WiFi 下下载离线语音包 */

@@ -118,6 +118,21 @@ public class PinyinView extends View {
         invalidate();
     }
 
+    /**
+     * 一次性应用字号 / 字体 / 排版方向 / 正文。
+     *
+     * <p>分开调用四个 setter 会各触发一次 {@code requestLayout}，切换竖排或注音时
+     * 中间态会被多画一遍，看起来就是一次跳动。合成一个入口后只重排一次。
+     */
+    public void setStyle(@Nullable Typeface typeface, float charSizePx, int orientation,
+                         @Nullable String text) {
+        this.typeface = typeface == null ? Typeface.SERIF : typeface;
+        this.charSize = charSizePx;
+        this.orientation = orientation;
+        this.text = text == null ? "" : text;
+        relayout();
+    }
+
     private void relayout() {
         groups.clear();
         requestLayout();
@@ -323,8 +338,12 @@ public class PinyinView extends View {
         float cellH = verticalCell();
         float pyGap = charSize * PY_GAP_RATIO;
 
-        // 自右向左：第一行在最右侧
-        float right = getPaddingLeft() + Math.min(avail, contentWidth);
+        // 自右向左：第一行在最右侧。
+        // 竖排内容没铺满容器时整体居中，与横排居中、以及非注音竖排方案的行为一致；
+        // 铺满时 offset 归零，排版规则与原来完全相同。
+        float shown = Math.min(avail, contentWidth);
+        float offset = Math.max(0f, (avail - shown) / 2f);
+        float right = getPaddingLeft() + offset + shown;
         float cursor = right;
         for (List<Cell> column : groups) {
             float colWidth = columnWidth(column);

@@ -37,6 +37,8 @@ public class PoemListActivity extends AppCompatActivity {
     public static final String MODE_THEME = "theme";
     public static final String MODE_AUTHOR = "author";
     public static final String MODE_SEARCH = "search";
+    /** 热点诗词：按热度（score）降序 */
+    public static final String MODE_HOT = "hot";
 
     private ActivityPoemListBinding binding;
     private PoetryRepository repository;
@@ -92,6 +94,8 @@ public class PoemListActivity extends AppCompatActivity {
                         android.widget.Toast.LENGTH_SHORT).show();
             }
         });
+        // 热点榜「查看全部」进来的这一页也带热度标记，与发现页保持一致
+        adapter.setHotMarkEnabled(MODE_HOT.equals(mode));
         binding.poemList.setLayoutManager(new LinearLayoutManager(this));
         binding.poemList.setAdapter(adapter);
 
@@ -142,6 +146,9 @@ public class PoemListActivity extends AppCompatActivity {
                 break;
             case MODE_SEARCH:
                 repository.search(value, 60, callback);
+                break;
+            case MODE_HOT:
+                repository.featured(60, callback);
                 break;
             case MODE_KIND:
             default:

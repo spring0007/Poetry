@@ -5,10 +5,12 @@ import android.app.Application;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatDelegate;
 
+import com.example.poetry.auth.AuthGuard;
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.local.DbInstaller;
 import com.example.poetry.data.local.UserStore;
 import com.example.poetry.media.Speaker;
+import com.example.poetry.ui.Night;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +37,9 @@ public class PoetryApp extends Application {
         super.onCreate();
         UserStore store = UserStore.get(this);
 
+        // 鉴权闸门：需登录的页面在创建时统一检查，被保护页面自身零改动
+        registerActivityLifecycleCallbacks(new AuthGuard(store));
+
         // Heavy (copy + SQLite connect) - off the main thread.
         warmUp.execute(() -> {
             PoetryRepository.get(PoetryApp.this);
@@ -48,17 +53,7 @@ public class PoetryApp extends Application {
         Speaker.get().prepare(this, null);
         Speaker.get().apply(store.getTtsConfig());
 
-        switch (store.getNightMode()) {
-            case UserStore.NIGHT_ON:
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-                break;
-            case UserStore.NIGHT_OFF:
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-                break;
-            default:
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-                break;
-        }
+        Night.apply(store);
     }
 
     @NonNull

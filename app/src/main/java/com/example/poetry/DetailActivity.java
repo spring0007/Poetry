@@ -54,9 +54,24 @@ public class DetailActivity extends AppCompatActivity {
     private String fontFamily = "serif";
     private float fontScale = 1.0f;
     private boolean playing;
+    /** 循环播放：一首读完自动重播本首 */
+    private boolean loopPlay;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable progressRunnable;
+    /** 循环播放的下一次开读；停播 / 关循环 / 退出页面都要撤掉 */
+    private Runnable loopRunnable;
+
+    /**
+     * 收藏变更监听：书架里把这首移出了、或在别处取消了收藏，
+     * 这个页面的 ♡ 也要立刻跟着变，而不是等到下次进页面才对。
+     */
+    private final UserStore.FavoriteListener favoriteListener = new UserStore.FavoriteListener() {
+        @Override
+        public void onFavoritesChanged() {
+            updateFavoriteIcon();
+        }
+    };
 
     public static void open(@NonNull Context context, @NonNull Poem poem) {
         Intent intent = new Intent(context, DetailActivity.class);
@@ -73,6 +88,7 @@ public class DetailActivity extends AppCompatActivity {
 
         repository = PoetryRepository.get(this);
         store = repository.store();
+        store.addFavoriteListener(favoriteListener);
         Speaker.get().init(this);
 
         poem = getIntent().getParcelableExtra(EXTRA_POEM);
@@ -84,6 +100,7 @@ public class DetailActivity extends AppCompatActivity {
 
         verticalMode = store.isVerticalReading();
         pinyinShown = store.isPinyinShown();
+        loopPlay = store.isLoopPlay();
         fontFamily = store.getFontFamily();
         fontScale = store.getFontScale();
 
@@ -222,13 +239,12 @@ public class DetailActivity extends AppCompatActivity {
         binding.verticalScroll.setVisibility(!pinyin && verticalMode ? View.VISIBLE : View.GONE);
 
         if (pinyin) {
-            binding.pinyinBody.setOrientation(verticalMode
-                    ? PinyinView.ORIENT_VERTICAL : PinyinView.ORIENT_HORIZONTAL);
-            binding.pinyinBody.setTypeface(currentTypeface());
-            binding.pinyinBody.setCharSize(poemCharSize());
+            // 一次设完全部样式：只重排一遍，切换竖排/注音时不会看到中间态闪一下
+            binding.pinyinBody.setStyle(currentTypeface(), poemCharSize(),
+                    verticalMode ? PinyinView.ORIENT_VERTICAL : PinyinView.ORIENT_HORIZONTAL,
+                    poem.getBody());
             binding.pinyinBody.setTextColor(ContextCompat.getColor(this, R.color.ink_900));
             binding.pinyinBody.setPinyinColor(ContextCompat.getColor(this, R.color.ink_500));
-            binding.pinyinBody.setText(poem.getBody());
             return;
         }
         if (verticalMode) {
@@ -424,6 +440,18 @@ public class DetailActivity extends AppCompatActivity {
                     }
                 }));
 
+        setToggle(binding.loopButton, loopPlay);
+        binding.loopButton.setOnClickListener(v -> {
+            loopPlay = !loopPlay;
+            store.setLoopPlay(loopPlay);
+            setToggle(binding.loopButton, loopPlay);
+            Toast.makeText(this, loopPlay ? R.string.player_loop_on
+                    : R.string.player_loop_off, Toast.LENGTH_SHORT).show();
+            if (!loopPlay) {
+                cancelLoop();
+            }
+        });
+
         Speaker.get().setListener(playerListener);
     }
 
@@ -443,6 +471,7 @@ public class DetailActivity extends AppCompatActivity {
             stopProgress();
             binding.playProgress.setProgress(100);
             store.setProgress(poem.getId(), 100);
+            scheduleLoop();
         }
 
         @Override
@@ -450,6 +479,7 @@ public class DetailActivity extends AppCompatActivity {
             playing = false;
             updatePlayIcon();
             stopProgress();
+            cancelLoop();
             Toast.makeText(DetailActivity.this, message, Toast.LENGTH_SHORT).show();
         }
     };
@@ -491,14 +521,43 @@ public class DetailActivity extends AppCompatActivity {
         // 直接应用整份配置：引擎 + 发音人 + 语速 + 音调 + 音量
         Speaker.get().apply(store.getTtsConfig());
         Speaker.get().setListener(playerListener);
+        // 按日期记一次朗读：同一天里同一首只累加次数
+        store.recordPlay(poem);
         Speaker.get().speak(poem.getBody().replace("\n", "。"));
     }
 
     private void stopPlay() {
+        cancelLoop();
         Speaker.get().stop();
         playing = false;
         updatePlayIcon();
         stopProgress();
+    }
+
+    /**
+     * 循环模式下读完一首，隔一小会儿自动重播。
+     * 留 1.2 秒空档：一口气接上去听不出「这一遍结束了」，不像在循环。
+     */
+    private void scheduleLoop() {
+        cancelLoop();
+        if (!loopPlay || isFinishing() || isDestroyed()) {
+            return;
+        }
+        loopRunnable = new Runnable() {
+            @Override
+            public void run() {
+                loopRunnable = null;
+                startPlay();
+            }
+        };
+        handler.postDelayed(loopRunnable, 1200L);
+    }
+
+    private void cancelLoop() {
+        if (loopRunnable != null) {
+            handler.removeCallbacks(loopRunnable);
+            loopRunnable = null;
+        }
     }
 
     /** 按字数估算朗读时长，进度条平滑推进 */
@@ -532,7 +591,9 @@ public class DetailActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        store.removeFavoriteListener(favoriteListener);
         super.onDestroy();
+        cancelLoop();
         stopProgress();
         Speaker.get().setListener(null);
         Speaker.get().stop();

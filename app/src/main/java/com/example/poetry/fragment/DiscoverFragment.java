@@ -12,8 +12,11 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.poetry.DetailActivity;
+import com.example.poetry.PoemListActivity;
 import com.example.poetry.R;
+import com.example.poetry.adapter.HotPoemAdapter;
 import com.example.poetry.adapter.PoemCardAdapter;
+import com.example.poetry.data.Callback;
 import com.example.poetry.data.DbStatus;
 import com.example.poetry.data.DbStatusListener;
 import com.example.poetry.data.PoetryRepository;
@@ -27,13 +30,17 @@ import java.util.Calendar;
 import java.util.List;
 
 /**
- * 发现页：Hero 今日推荐 + 体裁快捷筛选 + 精选诗词列表 + 空态。
+ * 发现页：Hero 今日推荐 + 热点诗词榜 + 体裁快捷筛选 + 精选诗词列表 + 空态。
  */
 public class DiscoverFragment extends Fragment {
+
+    /** 热点榜展示条数 */
+    private static final int HOT_LIMIT = 10;
 
     private FragmentDiscoverBinding binding;
     private PoetryRepository repository;
     private PoemCardAdapter adapter;
+    private HotPoemAdapter hotAdapter;
 
     /**
      * 诗库状态订阅者，**每个视图一份**，在 {@code onViewCreated} 里新建。
@@ -62,6 +69,7 @@ public class DiscoverFragment extends Fragment {
 
         setupChips();
         setupList();
+        setupHot();
 
         // 订阅诗库状态。注册会立刻回调一次当前状态，ReadyWatcher 把第一次回调算作跃迁，
         // 所以下面不需要再单独调一次 loadAll()——首次加载就是这次回调做的。
@@ -81,6 +89,7 @@ public class DiscoverFragment extends Fragment {
     /** 一次把这一页要的数据都取回来。库换了之后整页重取。 */
     private void loadAll() {
         loadHero();
+        loadHot();
         loadFeatured();
     }
 
@@ -125,6 +134,8 @@ public class DiscoverFragment extends Fragment {
                         Toast.LENGTH_SHORT).show();
             }
         });
+        // 精选列表里给高热度作品打「热」标记
+        adapter.setHotMarkEnabled(true);
         binding.poemList.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.poemList.setAdapter(adapter);
         binding.poemList.setNestedScrollingEnabled(false);
@@ -132,10 +143,25 @@ public class DiscoverFragment extends Fragment {
         binding.featuredHeader.sectionTitle.setText(R.string.section_selected);
     }
 
+    /** 热点榜：横向卡片，右侧「查看全部」进完整热点列表 */
+    private void setupHot() {
+        hotAdapter = new HotPoemAdapter(poem -> DetailActivity.open(requireContext(), poem));
+        binding.hotList.setLayoutManager(new LinearLayoutManager(requireContext(),
+                LinearLayoutManager.HORIZONTAL, false));
+        binding.hotList.setAdapter(hotAdapter);
+        binding.hotList.setNestedScrollingEnabled(false);
+
+        binding.hotHeader.sectionTitle.setText(R.string.section_hot);
+        binding.hotHeader.sectionMeta.setText(R.string.hot_view_all);
+        binding.hotHeader.sectionMeta.setOnClickListener(v ->
+                PoemListActivity.open(requireContext(), getString(R.string.hot_list_title),
+                        PoemListActivity.MODE_HOT, ""));
+    }
+
     // ---------------------------------------------------------------- 数据
 
     private void loadHero() {
-        repository.daily(new com.example.poetry.data.Callback<Poem>() {
+        repository.daily(new Callback<Poem>() {
             @Override
             public void onData(@NonNull Poem poem) {
                 if (binding == null) {
@@ -158,42 +184,66 @@ public class DiscoverFragment extends Fragment {
         });
     }
 
+    /** 热点榜：直接取热度最高的若干首（featured 本身即按 score 降序） */
+    private void loadHot() {
+        repository.featured(HOT_LIMIT, new Callback<List<Poem>>() {
+            @Override
+            public void onData(@NonNull List<Poem> poems) {
+                if (binding == null) {
+                    return;
+                }
+                hotAdapter.submit(poems);
+                boolean empty = poems.isEmpty();
+                binding.hotList.setVisibility(empty ? View.GONE : View.VISIBLE);
+                binding.hotHeader.getRoot().setVisibility(empty ? View.GONE : View.VISIBLE);
+            }
+
+            @Override
+            public void onError(@Nullable Throwable error) {
+                if (binding == null) {
+                    return;
+                }
+                binding.hotList.setVisibility(View.GONE);
+                binding.hotHeader.getRoot().setVisibility(View.GONE);
+            }
+        });
+    }
+
     private void loadFeatured() {
         binding.loadingBar.setVisibility(View.VISIBLE);
         binding.emptyState.getRoot().setVisibility(View.GONE);
 
-        com.example.poetry.data.Callback<List<Poem>> callback =
-                new com.example.poetry.data.Callback<List<Poem>>() {
-                    @Override
-                    public void onData(@NonNull List<Poem> poems) {
-                        if (binding == null) {
-                            return;
-                        }
-                        binding.loadingBar.setVisibility(View.GONE);
-                        adapter.submit(poems);
-                        binding.featuredHeader.sectionMeta.setText(
-                                getString(R.string.count_poems, poems.size()));
-                        boolean empty = poems.isEmpty();
-                        binding.emptyState.getRoot().setVisibility(empty ? View.VISIBLE : View.GONE);
-                        binding.poemList.setVisibility(empty ? View.GONE : View.VISIBLE);
-                        if (empty) {
-                            binding.emptyState.emptyTitle.setText(R.string.empty_title);
-                            binding.emptyState.emptyDesc.setText(R.string.empty_desc);
-                        }
-                    }
+        Callback<List<Poem>> callback = new Callback<List<Poem>>() {
+            @Override
+            public void onData(@NonNull List<Poem> poems) {
+                if (binding == null) {
+                    return;
+                }
+                binding.loadingBar.setVisibility(View.GONE);
+                adapter.submit(poems);
+                binding.featuredHeader.sectionMeta.setText(
+                        getString(R.string.count_poems, poems.size()));
+                boolean empty = poems.isEmpty();
+                binding.emptyState.getRoot().setVisibility(empty ? View.VISIBLE : View.GONE);
+                binding.poemList.setVisibility(empty ? View.GONE : View.VISIBLE);
+                if (empty) {
+                    binding.emptyState.emptyTitle.setText(R.string.empty_title);
+                    binding.emptyState.emptyDesc.setText(R.string.empty_desc);
+                }
+            }
 
-                    @Override
-                    public void onError(@Nullable Throwable error) {
-                        if (binding == null) {
-                            return;
-                        }
-                        binding.loadingBar.setVisibility(View.GONE);
-                        binding.emptyState.getRoot().setVisibility(View.VISIBLE);
-                        binding.emptyState.emptyTitle.setText(R.string.empty_title);
-                        binding.emptyState.emptyDesc.setText(R.string.empty_desc);
-                        binding.poemList.setVisibility(View.GONE);
-                    }
-                };
+            @Override
+            public void onError(@Nullable Throwable error) {
+                if (binding == null) {
+                    return;
+                }
+                binding.loadingBar.setVisibility(View.GONE);
+                binding.emptyState.getRoot().setVisibility(View.VISIBLE);
+                binding.emptyState.emptyTitle.setText(R.string.empty_title);
+                binding.emptyState.emptyDesc.setText(R.string.empty_desc);
+                binding.poemList.setVisibility(View.GONE);
+            }
+        };
 
         if (currentKind.isEmpty()) {
             repository.featured(20, callback);

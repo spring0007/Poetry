@@ -43,6 +43,8 @@
     <dimen name="size_checkin_dot">28dp</dimen>
     <dimen name="size_type_mark">72dp</dimen>
     <dimen name="size_row_icon">30dp</dimen>
+    <dimen name="size_hot_card">150dp</dimen>
+    <dimen name="size_hot_rank">22dp</dimen>
 
     <!-- ================= 行高 / 字距 ================= -->
     <dimen name="line_spacing_poem">8dp</dimen>

@@ -85,12 +85,46 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".StatsActivity"
+            android:exported="false"
+            android:label="@string/stats_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 微信开放平台 AppID：填入真实值后，登录页自动从「模拟登录」切换为真实授权 -->
+        <meta-data
+            android:name="com.example.poetry.WX_APP_ID"
+            android:value="" />
+
+        <activity
+            android:name=".AuthorDetailActivity"
+            android:exported="false"
+            android:label="@string/author_detail_title"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false"
+            android:label="@string/login_title"
+            android:theme="@style/Theme.Poetry"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ProfileActivity"
             android:exported="false"
             android:label="@string/profile_title"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Poetry"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".wxapi.WXEntryActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 
 </manifest>

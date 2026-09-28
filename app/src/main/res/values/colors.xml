@@ -88,4 +88,6 @@
     <color name="skin_moyu_primary">#FF2A211C</color>
     <color name="skin_moyu_accent">#FF6D625B</color>
     <color name="skin_moyu_line">#FFDFDFDC</color>
+    <!-- 微信品牌绿：登录按钮用（与诗韵朱红并置，仅出现在登录页） -->
+    <color name="wx_green">#FF07C160</color>
 </resources>

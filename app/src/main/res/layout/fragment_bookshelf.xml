@@ -191,7 +191,7 @@
         android:paddingEnd="@dimen/space_3"
         android:textAppearance="@style/TextAppearance.Poetry.Body" />
 
-    <!-- 排序 + 视图切换 -->
+    <!-- 排序 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -208,6 +208,17 @@
             android:layout_weight="1"
             app:chipSpacingHorizontal="@dimen/space_1"
             app:singleLine="true" />
+    </LinearLayout>
+
+    <!-- 视图切换在左，删除 / 清空在右：两组分开一行，不再挤在一起 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/page_margin"
+        android:layout_marginTop="@dimen/space_2"
+        android:layout_marginEnd="@dimen/page_margin"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <Button
             android:id="@+id/btnGrid"
@@ -226,14 +237,27 @@
             android:minWidth="0dp"
             android:text="@string/shelf_view_list" />
 
-            <Button
-                android:id="@+id/btnClear"
-                style="@style/Widget.Poetry.SegmentButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_1"
-                android:minWidth="0dp"
-                android:text="@string/shelf_clear" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/btnDone"
+            style="@style/Widget.Poetry.SegmentButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:text="@string/shelf_edit_done" />
+
+        <Button
+            android:id="@+id/btnClear"
+            style="@style/Widget.Poetry.SegmentButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_1"
+            android:minWidth="0dp"
+            android:text="@string/shelf_clear" />
     </LinearLayout>
 
     <!-- 收藏列表 -->

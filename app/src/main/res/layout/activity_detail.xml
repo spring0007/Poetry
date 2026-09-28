@@ -309,6 +309,16 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/loopButton"
+            android:layout_width="@dimen/size_icon_button"
+            android:layout_height="@dimen/size_icon_button"
+            android:layout_marginStart="@dimen/space_2"
+            android:background="@drawable/bg_icon_button"
+            android:contentDescription="@string/cd_loop"
+            android:src="@drawable/ic_loop"
+            app:tint="@color/ink_700" />
+
+        <ImageButton
             android:id="@+id/voiceButton"
             android:layout_width="@dimen/size_icon_button"
             android:layout_height="@dimen/size_icon_button"

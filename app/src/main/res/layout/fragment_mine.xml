@@ -378,6 +378,10 @@
                 layout="@layout/view_settings_row" />
 
             <include
+                android:id="@+id/rowStats"
+                layout="@layout/view_settings_row" />
+
+            <include
                 android:id="@+id/rowDownload"
                 layout="@layout/view_settings_row" />
 

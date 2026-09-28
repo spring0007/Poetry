@@ -333,4 +333,73 @@
     <string name="shelf_cleared">书架已清空</string>
     <string name="shelf_fav_at">%1$s 收藏</string>
     <string name="shelf_search_empty">书架里没有匹配「%1$s」的作品</string>
+
+    <!-- ================= 书架：编辑态删除 ================= -->
+    <string name="shelf_edit">编辑</string>
+    <string name="shelf_edit_done">完成</string>
+    <string name="shelf_edit_hint">编辑模式：点 ✕ 可移出书架，长按卡片也能进入</string>
+    <string name="shelf_remove_title">移出书架</string>
+    <string name="shelf_remove_confirm">确定把《%1$s》移出书架？移出后就只能去发现页重新收藏了。</string>
+    <string name="cd_delete">删除</string>
+
+    <!-- ================= 热点 ================= -->
+    <string name="section_hot">热点诗词</string>
+    <string name="hot_view_all">查看全部 ›</string>
+    <string name="hot_mark_value">热 %1$d</string>
+    <string name="hot_list_title">热点诗词榜</string>
+    <string name="hot_list_sub">按热度排序</string>
+    <string name="hot_value">热度 %1$d · %2$d 句</string>
+    <string name="hot_rank_desc">第 %1$d 名 %2$s</string>
+
+    <!-- ================= 作者详情 ================= -->
+    <string name="author_detail_title">作者简介</string>
+    <string name="author_meta">%1$s · 存世 %2$d 首</string>
+    <string name="author_works">代表作品</string>
+    <string name="author_view_all">查看全部 %1$d 首 ›</string>
+    <string name="author_intro_empty">这位作者还没有简介</string>
+    <string name="author_stat_poems">存世作品</string>
+    <string name="author_stat_dynasty">所属朝代</string>
+    <string name="author_load_failed">作者信息载入失败</string>
+    <string name="login_title">登录诗韵</string>
+    <string name="login_slogan">让每一首诗都被听见</string>
+    <string name="login_seal_char">诗</string>
+    <string name="login_wechat">微信登录</string>
+    <string name="login_mock">模拟登录（未配置微信）</string>
+    <string name="login_mock_note">模拟登录不连接任何服务器，仅在本机生成临时身份</string>
+    <string name="login_agreement">登录即代表同意《用户协议》与《隐私政策》；全部数据仅保存在本机</string>
+    <string name="login_wechat_missing">未检测到微信或未配置 AppID，已改用模拟登录</string>
+    <string name="login_wechat_failed">微信登录未完成：%s</string>
+    <string name="login_success">已登录：%s</string>
+    <string name="login_mock_nickname">诗友 %s</string>
+    <string name="me_not_logged_in">未登录</string>
+    <string name="me_login_hint">点击登录，解锁个人资料与朗读历史</string>
+    <!-- ================= 夜间模式 ================= -->
+    <string name="night_on_msg">已开启夜间模式</string>
+    <string name="night_off_msg">已关闭夜间模式</string>
+
+    <!-- ================= 数据统计（按日期） ================= -->
+    <string name="stats_title">数据统计</string>
+    <string name="stats_sub">按日期记录朗读与收藏</string>
+    <string name="stats_value">朗读 %1$d 天 · %2$d 次 · 收藏 %3$d 首</string>
+    <string name="stats_summary">共 %1$d 天有记录，累计朗读 %2$d 次</string>
+    <string name="stats_empty_title">还没有统计记录</string>
+    <string name="stats_empty_desc">读一首诗，这里就会按日期记下来</string>
+    <string name="stats_day_play">朗读 %1$d 次 · %2$d 首</string>
+    <string name="stats_day_fav">收藏 %1$d 首 · 取消 %2$d 首</string>
+    <string name="stats_today">今天</string>
+    <string name="stats_group_played">朗读</string>
+    <string name="stats_group_favorite">收藏</string>
+    <string name="stats_top_title">累计读得最多</string>
+    <string name="stats_top_desc">按诗词 ID 汇总播放次数（#ID 标题 作者 ×次数）</string>
+    <string name="stats_file_hint">数据写在 user_data.json 的 daily 分区：日期 → { 诗id: 次数 }</string>
+
+    <!-- ================= 详情页循环播放 ================= -->
+    <string name="cd_loop">循环播放</string>
+    <string name="player_loop_on">已开启循环播放</string>
+    <string name="player_loop_off">已关闭循环播放</string>
+
+    <!-- ================= 书架：整理态 ================= -->
+    <string name="shelf_manage_hint">点 ✕ 移出书架；点「完成」收起删除按钮</string>
+    <string name="shelf_done_hint">已收起删除按钮，长按卡片可重新显示</string>
+
 </resources>

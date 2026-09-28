@@ -55,6 +55,21 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/space_2"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <ImageButton
+                    android:id="@+id/cardDelete"
+                    android:layout_width="@dimen/size_row_icon"
+                    android:layout_height="@dimen/size_row_icon"
+                    android:background="@drawable/bg_circle"
+                    android:contentDescription="@string/cd_remove"
+                    android:src="@drawable/ic_close"
+                    android:visibility="gone"
+                    app:tint="@color/ink_400" />
             </LinearLayout>
 
             <TextView
@@ -94,6 +109,21 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption"
                     android:textColor="@color/color_gold" />
+
+                <TextView
+                    android:id="@+id/cardHotTag"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:background="@drawable/bg_badge"
+                    android:includeFontPadding="false"
+                    android:paddingStart="@dimen/space_1"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="@dimen/space_1"
+                    android:paddingBottom="1dp"
+                    android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/cardHot"

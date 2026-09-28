@@ -77,6 +77,7 @@
             android:background="@drawable/bg_circle"
             android:contentDescription="@string/cd_remove"
             android:src="@drawable/ic_close"
+            android:visibility="gone"
             app:tint="@color/ink_400" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
