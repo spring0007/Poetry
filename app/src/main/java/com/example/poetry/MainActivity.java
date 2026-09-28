@@ -131,7 +131,8 @@ public class MainActivity extends AppCompatActivity {
     private void setupSearch() {
         imm = getSystemService(InputMethodManager.class);
         searchAdapter = new SearchResultAdapter(poem -> {
-            DetailActivity.open(this, poem);
+            // 带上整份搜索结果：详情页里上下滑动就沿这次搜索的结果翻
+            DetailActivity.openInList(this, searchAdapter.items(), poem);
             closeSearchPanel();
         });
         binding.searchResults.setLayoutManager(new LinearLayoutManager(this));

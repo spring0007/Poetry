@@ -29,10 +29,22 @@
             android:textAppearance="@style/TextAppearance.Poetry.Caption" />
     </LinearLayout>
 
+    <!--
+        saveEnabled="false" 是必须的，不能删：
+        这份布局在 fragment_mine.xml 里被 <include> 了四次（竖排 / 夜间 / 自动朗读 / 连续朗读），
+        四个开关的 id 都是 switchControl。CompoundButton 把选中状态按 **view id** 存进
+        SparseArray、再按 id 还原，同一个 id 只存得下一份——最后那个（连续朗读，默认开）
+        会盖掉其余三个，还原时四个开关一起被 setChecked(true)，各自触发
+        OnCheckedChangeListener：竖排、自动朗读被顺手打开，夜间模式更是被 Night.setEnabled
+        重新写回 NIGHT_ON。每次重建都这么来一遍，于是「关掉夜间模式」永远被自己覆盖回来。
+        开关状态一律以 UserStore 为准（MineFragment.setupPreferences 每次建视图都重设），
+        不需要框架代存。
+    -->
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/switchControl"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minWidth="@dimen/size_touch_min" />
+        android:minWidth="@dimen/size_touch_min"
+        android:saveEnabled="false" />
 
 </LinearLayout>

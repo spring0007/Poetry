@@ -405,6 +405,68 @@ public final class PoetryDatabase {
     }
 
     /**
+     * 全库随机取一首。
+     *
+     * <p>不能写 {@code ORDER BY RANDOM()}：34 万行会全表扫描再排序，慢到不能用。
+     * {@code poems.id} 是 rowid 别名，于是先在 {@code [1, MAX(id)]} 里随机取一个起点，
+     * 再取「id 不小于这个起点的第一条」——两次都是索引查找，O(log n)。
+     * id 有空洞时各首被抽中的概率会有偏移（空洞后面那首更容易中），
+     * 对「换一首看看」这个用途足够了。
+     *
+     * @param excludeId 尽量避开的那首（≤ 0 表示不排除）
+     */
+    @Nullable
+    public Poem randomPoem(long excludeId) {
+        if (!isReady()) {
+            return null;
+        }
+        Poem poem = randomPoemOnce();
+        // 撞上同一首就再抽一次；全库只剩一首时第二次还是它，认了
+        if (poem != null && poem.getId() == excludeId) {
+            Poem again = randomPoemOnce();
+            if (again != null) {
+                poem = again;
+            }
+        }
+        if (poem != null && hasStrains()) {
+            poem.setStrain(strainOf(poem.getId()));
+        }
+        return poem;
+    }
+
+    /**
+     * 随机取一首的裸查询，不做任何排除。
+     *
+     * <p>{@code RANDOM() % MAX(id)} 而不是 {@code ABS(RANDOM()) % MAX(id)}：
+     * {@code ABS(-9223372036854775808)} 在 SQLite 里会原样返回负数，
+     * 先取模再取绝对值就没有这个坑（模数最大 34 万，结果不可能是 int64 最小值）。
+     */
+    @Nullable
+    private Poem randomPoemOnce() {
+        Cursor c = null;
+        try {
+            c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
+                    + " WHERE p.id >= ABS(RANDOM() % (SELECT MAX(id) FROM poems)) + 1"
+                    + " ORDER BY p.id ASC LIMIT 1", null);
+            if (c.moveToFirst()) {
+                return readPoem(c);
+            }
+            // MAX(id) 是 NULL（空表）时上面的比较恒为 NULL，兜一首第一首
+            closeQuietly(c);
+            c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
+                    + " ORDER BY p.id ASC LIMIT 1", null);
+            if (c.moveToFirst()) {
+                return readPoem(c);
+            }
+        } catch (Exception e) {
+            LogUtil.e("randomPoem failed", e);
+        } finally {
+            closeQuietly(c);
+        }
+        return null;
+    }
+
+    /**
      * 综合检索：作者 → 标题 → 正文，三段式并去重。
      * <p>
      * 不加 ORDER BY，让 SQLite 在凑够 LIMIT 后立即停止扫描（库有 34 万首，避免全表排序）。

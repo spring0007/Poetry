@@ -122,6 +122,12 @@
     <string name="tts_unavailable">语音引擎不可用，无法朗读</string>
     <string name="tts_preview_text">关关雎鸠，在河之洲。</string>
 
+    <!-- 详情页上下滑动翻篇 -->
+    <string name="detail_last_poem">已经是最后一首了</string>
+    <string name="detail_first_poem">已经是第一首了</string>
+    <string name="detail_no_prev">还没有上一首</string>
+    <string name="detail_switch_failed">没能取到这首，稍后再试</string>
+
     <!-- 提示 -->
     <string name="toast_font_set">正文字号已设为 %1$s</string>
 

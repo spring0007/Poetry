@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 统一数据入口（离线优先）。
@@ -264,6 +265,43 @@ public final class PoetryRepository {
             }
             return poem;
         }, callback);
+    }
+
+    /**
+     * 全库随机取一首，尽量避开 {@code excludeId}（详情页「随机换一首」用）。
+     *
+     * <p>种子库回退必须写在 Callable 里：{@link #run} 把 null 结果当成错误
+     * （转成 {@code onError(IllegalStateException)}），在外面兜就太晚了。
+     */
+    public void randomPoem(long excludeId, @NonNull Callback<Poem> callback) {
+        run(() -> {
+            Poem poem = database.isReady() ? database.randomPoem(excludeId) : null;
+            if (poem == null) {
+                poem = randomSeed(excludeId);
+            }
+            if (poem != null && database.hasStrains()) {
+                poem.setStrain(database.strainOf(poem.getId()));
+            }
+            return poem;
+        }, callback);
+    }
+
+    /** 种子库里的随机兜底（本地库还没搬好时用）。 */
+    @Nullable
+    private static Poem randomSeed(long excludeId) {
+        List<Poem> all = SeedDataSource.all();
+        if (all.isEmpty()) {
+            return null;
+        }
+        int start = ThreadLocalRandom.current().nextInt(all.size());
+        for (int i = 0; i < all.size(); i++) {
+            Poem poem = all.get((start + i) % all.size());
+            // 从头绕一圈找第一首不是 excludeId 的；只有一首时它就是 excludeId，认了
+            if (poem.getId() != excludeId) {
+                return poem;
+            }
+        }
+        return all.get(start);
     }
 
     public void search(@NonNull String keyword, int limit, @NonNull Callback<List<Poem>> callback) {

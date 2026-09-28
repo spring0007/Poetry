@@ -17,10 +17,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // sherpa-onnx ships four ABIs (~90 MB). 32-bit devices are effectively
-        // gone, so only arm64 is packaged; the app stays around 88 MB instead of 130.
+        // sherpa-onnx ships four ABIs (~90 MB). Only the two ARM ABIs are
+        // packaged: arm64 for current devices, armeabi-v7a for 32-bit ones.
+        // The x86/x86_64 emulator libs are dropped to keep the APK smaller.
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 

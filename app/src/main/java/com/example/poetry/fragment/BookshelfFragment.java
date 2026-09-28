@@ -107,7 +107,8 @@ public class BookshelfFragment extends Fragment {
             if (favorites.isEmpty()) {
                 Toast.makeText(requireContext(), R.string.shelf_empty_toast, Toast.LENGTH_SHORT).show();
             } else {
-                DetailActivity.open(requireContext(), favorites.get(0));
+                // 带上整份书架：详情页里上下滑动就沿书架顺序翻
+                DetailActivity.openInList(requireContext(), favorites, favorites.get(0));
             }
         });
 
@@ -138,7 +139,7 @@ public class BookshelfFragment extends Fragment {
             @Override
             public void onPoemClick(@NonNull Poem poem) {
                 // 整理态下卡片照常可点开：删除只认卡片上的 ✕，点正文不会误删也不会白点
-                DetailActivity.open(requireContext(), poem);
+                DetailActivity.openInList(requireContext(), gridAdapter.items(), poem);
             }
 
             @Override
@@ -161,7 +162,7 @@ public class BookshelfFragment extends Fragment {
             @Override
             public void onPoemClick(@NonNull Poem poem) {
                 // 同上：列表行的 ✕ 才是删除入口，点行本身是看详情
-                DetailActivity.open(requireContext(), poem);
+                DetailActivity.openInList(requireContext(), listAdapter.items(), poem);
             }
 
             @Override

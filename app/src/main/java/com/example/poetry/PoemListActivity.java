@@ -83,7 +83,9 @@ public class PoemListActivity extends AppCompatActivity {
         adapter = new PoemCardAdapter(new PoemCardAdapter.Listener() {
             @Override
             public void onPoemClick(@NonNull Poem poem) {
-                DetailActivity.open(PoemListActivity.this, poem);
+                // 分类 / 朝代 / 主题 / 搜索 / 热点都走这一处：详情页里上下滑动
+                // 就沿当前这一份列表翻，正是「分类按分类切换下一首」要的效果
+                DetailActivity.openInList(PoemListActivity.this, adapter.items(), poem);
             }
 
             @Override

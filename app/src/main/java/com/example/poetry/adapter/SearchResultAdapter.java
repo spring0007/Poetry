@@ -34,6 +34,12 @@ public class SearchResultAdapter extends RecyclerView.Adapter<SearchResultAdapte
         notifyDataSetChanged();
     }
 
+    /** 详情页要拿着整份搜索结果翻页，见 {@code DetailActivity#openInList} */
+    @NonNull
+    public List<Poem> items() {
+        return data;
+    }
+
     @NonNull
     @Override
     public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
