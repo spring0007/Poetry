@@ -268,8 +268,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:stepSize="0.1"
-                    android:value="1.0"
-                    android:valueFrom="0.6"
+                    android:value="0.8"
+                    android:valueFrom="0.5"
                     android:valueTo="1.8" />
             </LinearLayout>
 

@@ -860,7 +860,8 @@ public class DetailActivity extends AppCompatActivity {
         Speaker.get().setListener(playerListener);
         // 按日期记一次朗读：同一天里同一首只累加次数
         store.recordPlay(poem);
-        Speaker.get().speak(poem.getBody().replace("\n", "。"));
+        // 换行原样交给引擎：TextChunker 要按诗行分「联」，替成「。」就没法分了
+        Speaker.get().speak(poem.getBody());
     }
 
     private void stopPlay() {
@@ -923,10 +924,14 @@ public class DetailActivity extends AppCompatActivity {
         }
     }
 
-    /** 按字数估算朗读时长，进度条平滑推进 */
+    /**
+     * 按字数 + 语速 + 联间停顿估算朗读时长，进度条平滑推进。
+     * 口径要和 {@code Speaker.estimateDurationMs} 一致，否则会先跑满。
+     */
     private void startProgress() {
         stopProgress();
-        long durationMs = Math.max(2000L, poem.getNChar() * 260L);
+        long durationMs = Speaker.estimateDurationMs(
+                poem.getBody(), store.getTtsConfig().getRate());
         long start = System.currentTimeMillis();
         progressRunnable = new Runnable() {
             @Override

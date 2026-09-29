@@ -20,7 +20,7 @@ public class TtsConfig {
     public static final float RATE_MIN = 0.6f;
     public static final float RATE_MAX = 1.8f;
     // 中文诗词偏慢更清晰、也更少「机器连读」的生硬感
-    public static final float RATE_DEFAULT = 0.9f;
+    public static final float RATE_DEFAULT = 1.0f;
 
     public static final float PITCH_MIN = 0.5f;
     public static final float PITCH_MAX = 1.5f;

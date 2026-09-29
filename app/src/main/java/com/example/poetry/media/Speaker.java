@@ -189,6 +189,32 @@ public final class Speaker {
         engine.speak(text);
     }
 
+    /**
+     * 估算一次朗读的时长（毫秒），给详情页进度条用。
+     * <p>
+     * 必须是「和实际播放口径一致」的估算：字数只决定发音部分，还要算上语速，
+     * 以及联与联之间那段 {@link SherpaTts#BLOCK_GAP_MS} 静音。少算任何一项，
+     * 进度条都会在声音结束前先跑满。
+     *
+     * @param text 正文（可以带换行，与交给 {@link #speak} 的一致）
+     * @param rate 语速倍率，见 {@code TtsConfig}
+     */
+    public static long estimateDurationMs(@NonNull String text, float rate) {
+        List<String> blocks = TextChunker.split(PoetryReadings.forSpeech(text));
+        int chars = 0;
+        for (String block : blocks) {
+            chars += block.length();
+        }
+        float safeRate = rate < TtsConfig.RATE_MIN ? TtsConfig.RATE_DEFAULT : rate;
+        // 240 ms/字 是 rate=1.0 时的实测经验值（取自「音色筛选」导出的时长）
+        long speaking = Math.round(chars * MS_PER_CHAR / safeRate);
+        long gaps = Math.max(0, blocks.size() - 1) * SherpaTts.BLOCK_GAP_MS;
+        return Math.max(2000L, speaking + gaps);
+    }
+
+    /** rate=1.0 时每个字符约占的毫秒数。 */
+    private static final float MS_PER_CHAR = 240f;
+
     public void stop() {
         engine.stop();
     }
