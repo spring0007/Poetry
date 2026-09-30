@@ -1,5 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+}
+
+// 腾讯云语音合成的密钥从 local.properties 读，不进版本库（见 .gitignore）。
+// 没填时 BuildConfig 里是空串，引擎按「未配置」处理，离线朗读照常。
+val localProperties = Properties().apply {
+    val propsFile = rootProject.file("local.properties")
+    if (propsFile.exists()) {
+        propsFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -14,6 +25,14 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        // 腾讯云密钥：空串 = 未配置，QCloudTts 自动降级为不可用
+        buildConfigField("String", "QCLOUD_APP_ID",
+            "\"" + (localProperties.getProperty("QCLOUD_APP_ID", "") ?: "") + "\"")
+        buildConfigField("String", "QCLOUD_SECRET_ID",
+            "\"" + (localProperties.getProperty("QCLOUD_SECRET_ID", "") ?: "") + "\"")
+        buildConfigField("String", "QCLOUD_SECRET_KEY",
+            "\"" + (localProperties.getProperty("QCLOUD_SECRET_KEY", "") ?: "") + "\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -47,6 +66,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -56,6 +76,7 @@ dependencies {
     // 两个都按 .gitignore 不入库，用 tools/fetch-tts-deps.sh 取。
     implementation(files("libs/sherpa-onnx-1.13.8.aar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
+    implementation(files("libs/libqcloudtts-release.aar"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

@@ -767,7 +767,7 @@ public class DetailActivity extends AppCompatActivity {
 
                     @Override
                     public void onPreview(@NonNull com.example.poetry.data.model.Voice voice) {
-                        Speaker.get().speak(getString(R.string.tts_preview_text));
+                        startPreview();
                     }
                 }));
 
@@ -819,10 +819,67 @@ public class DetailActivity extends AppCompatActivity {
             cancelNext();
             Toast.makeText(DetailActivity.this, message, Toast.LENGTH_SHORT).show();
         }
+
+        @Override
+        public void onNotice(String message) {
+            // 只是换了个声音，这一遍还在读——不动 playing、不碰进度条，说一声就够了
+            Toast.makeText(DetailActivity.this, message, Toast.LENGTH_LONG).show();
+        }
     };
 
+    /**
+     * 试听专用的回调——只报错，不碰任何播放状态。
+     * <p>
+     * 试听和正文朗读共用同一只引擎，而 {@link Speaker} 身上只挂得下一个 listener。
+     * 试听期间如果还挂着 {@link #playerListener}，那句「明月几时有」的 onStart / onDone
+     * 会被当成这首诗读完了：进度条直接推到 100、{@code store.setProgress(poem, 100)}
+     * 把这诗标记成已读完，开着「连续朗读」还会顺势翻到下一篇。
+     */
+    private final Speaker.Listener previewListener = new Speaker.Listener() {
+        @Override
+        public void onStart() {
+            // 刻意什么都不做：进度条量的是整首诗，不能被一句试听带起节奏
+        }
+
+        @Override
+        public void onDone() {
+            // 试听读完了，把正文的 listener 换回去
+            Speaker.get().setListener(playerListener);
+        }
+
+        @Override
+        public void onError(String message) {
+            Speaker.get().setListener(playerListener);
+            Toast.makeText(DetailActivity.this, message, Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onNotice(String message) {
+            Toast.makeText(DetailActivity.this, message, Toast.LENGTH_LONG).show();
+        }
+    };
+
+    /**
+     * 试听。正在朗读的话先把当前这首停下来——引擎只有一条声道，试听必然会把朗读打断，
+     * 与其让进度条在没声音的情况下继续爬，不如明确地停下来。
+     */
+    private void startPreview() {
+        if (playing) {
+            stopPlay();
+        }
+        Speaker.get().setListener(previewListener);
+        Speaker.get().speak(getString(R.string.tts_preview_text));
+    }
+
     private void updateVoiceLabel() {
-        String voiceId = store.getTtsConfig().getVoiceId();
+        // 取引擎归一之后的音色，而不是存下来的那个：未开通会员时，存着的云端音色不会真的发声，
+        // 引擎已经退回离线音色（见 EngineRouter#currentVoiceId）。拿存下来的 id 去找名字，
+        // 标签上写着「智瑞」、耳朵里听见的却是另一个音色——这个标签的职责是「谁在读」，
+        // 不是「上次选过谁」。归一在 Speaker.apply 里同步过来，启动时就跑过了（见 PoetryApp）。
+        String voiceId = Speaker.get().currentVoiceId();
+        if (voiceId == null || voiceId.isEmpty()) {
+            voiceId = store.getTtsConfig().getVoiceId();
+        }
         String name = voiceId.isEmpty() ? getString(R.string.voice_default_name) : "";
         if (name.isEmpty()) {
             for (com.example.poetry.data.model.Voice voice : Speaker.get().listVoices()) {
@@ -925,12 +982,12 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     /**
-     * 按字数 + 语速 + 联间停顿估算朗读时长，进度条平滑推进。
-     * 口径要和 {@code Speaker.estimateDurationMs} 一致，否则会先跑满。
+     * 按字数 + 语速 + 停顿估算朗读时长，进度条平滑推进。
+     * 口径由 {@code Speaker.estimateDurationMs} 按当前引擎（离线/云端）自己挑，否则会先跑满。
      */
     private void startProgress() {
         stopProgress();
-        long durationMs = Speaker.estimateDurationMs(
+        long durationMs = Speaker.get().estimateDurationMs(
                 poem.getBody(), store.getTtsConfig().getRate());
         long start = System.currentTimeMillis();
         progressRunnable = new Runnable() {

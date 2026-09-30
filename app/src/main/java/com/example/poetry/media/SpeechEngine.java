@@ -31,8 +31,28 @@ public interface SpeechEngine {
         void onDone();
 
         void onError(String message);
+
+        /**
+         * 一句提醒：这次朗读没按预想的方式发生，但它<b>还活着</b>——例如云端音色顶不上，
+         * 已经自动换成本机音色接着读了。
+         * <p>
+         * 和 {@link #onError} 的分工是：「这次朗读结束了没有」。{@code onError} 之后
+         * 上层要收尾（复位播放按钮、停进度条），{@code onNotice} 之后什么都不用做，
+         * 把话转给用户就行——错当成错误收尾会把正在读的这一段掐掉。
+         * <p>
+         * 默认空实现：只有可能「换了种方式继续」的引擎才需要用到它。
+         */
+        default void onNotice(String message) {
+        }
     }
 
+
+    /**
+     * 加载/初始化引擎；onReady 在状态确定后回主线程调用（可能已经在加载途中，幂等）。
+     * 子类自己决定要不要异步——{@link com.example.poetry.media.SherpaTts} 会异步加载模型，
+     * 腾讯云引擎几乎是即时的（只做一次鉴权配置）。
+     */
+    void prepare(@NonNull Context context, @Nullable Runnable onReady);
     /** 引擎是否可用（模型已加载且至少有一个音色） */
     boolean isReady();
 
@@ -60,6 +80,17 @@ public interface SpeechEngine {
     void stop();
 
     boolean isSpeaking();
+
+    /**
+     * 下一句会不会走云端（也就是「要联网、有一次往返延迟」）。
+     * <p>
+     * 给上层估时长用的：云端合成的时间开销和本机不是一回事，进度条得按各自的
+     * 节奏走，详见 {@link Speaker#estimateDurationMs(String, float)}。
+     * 默认 false——绝大多数引擎是本机的。
+     */
+    default boolean usingCloud() {
+        return false;
+    }
 
     void shutdown();
 }

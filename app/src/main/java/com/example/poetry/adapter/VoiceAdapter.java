@@ -91,6 +91,15 @@ public class VoiceAdapter extends RecyclerView.Adapter<VoiceAdapter.Holder> {
             binding.voiceCheck.setVisibility(voice.isSelected() ? android.view.View.VISIBLE
                     : android.view.View.INVISIBLE);
 
+            boolean locked = voice.isLocked();
+            binding.voiceLock.setVisibility(locked ? android.view.View.VISIBLE
+                    : android.view.View.GONE);
+            binding.getRoot().setAlpha(locked ? 0.55f : 1f);
+            binding.voiceTry.setEnabled(!locked);
+            binding.voiceTry.setAlpha(locked ? 0.4f : 1f);
+            binding.voiceCheck.setVisibility((voice.isSelected() && !locked)
+                    ? android.view.View.VISIBLE : android.view.View.INVISIBLE);
+
             binding.getRoot().setOnClickListener(v -> listener.onVoiceClick(voice));
             binding.voiceTry.setOnClickListener(v -> listener.onTryClick(voice));
         }

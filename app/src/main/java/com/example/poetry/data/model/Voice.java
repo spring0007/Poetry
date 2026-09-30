@@ -24,6 +24,8 @@ public class Voice {
     private String locale;
     private boolean selected;
     private boolean cloud;
+    /** 是否锁定（例如云端音色需会员且当前未开通） */
+    private boolean locked;
 
     public Voice() {
         this.id = "";
@@ -113,6 +115,15 @@ public class Voice {
 
     public void setCloud(boolean cloud) {
         this.cloud = cloud;
+    }
+
+    /** 云端音色被锁（需会员）时界面用；离线音色恒为 false */
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
     }
 
     /** 音色头像首字 */

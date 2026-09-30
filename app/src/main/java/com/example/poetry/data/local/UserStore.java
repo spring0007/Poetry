@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 
 import com.example.poetry.data.model.DayStat;
 import com.example.poetry.data.model.Poem;
+import com.example.poetry.data.model.Member;
 import com.example.poetry.data.model.TtsConfig;
 
 import org.json.JSONArray;
@@ -140,6 +141,7 @@ public final class UserStore {
         if (root.length() == 0) {
             migrateFromSharedPreferences(app);
         }
+        ensureMember();
         ensureSections();
         save();
     }
@@ -233,8 +235,8 @@ public final class UserStore {
     /** 保证各分区存在，避免调用方到处判空 */
     private void ensureSections() {
         synchronized (lock) {
-            for (String name : new String[]{"profile", "checkin", "stats", "prefs",
-                    "readAt", "progress", "session", "daily"}) {
+                for (String name : new String[]{"profile", "checkin", "stats",
+                        "prefs", "readAt", "progress", "session", "daily", "member"}) {
                 if (root.optJSONObject(name) == null) {
                     try {
                         root.put(name, new JSONObject());
@@ -258,6 +260,67 @@ public final class UserStore {
                 // ignore
             }
         }
+    }
+
+    /**
+     * 首次启动（member 分区没有任何记录）按测试期开关写入默认会员状态，
+     * 之后用户手动切换过就会留下 {@code level} 字段，不再被这个默认值覆盖。
+     */
+    private void ensureMember() {
+        synchronized (lock) {
+            JSONObject member = root.optJSONObject("member");
+            if (member == null) {
+                member = new JSONObject();
+                try {
+                    root.put("member", member);
+                } catch (JSONException ignored) {
+                    // ignore
+                }
+            }
+            if (!member.has("level")) {
+                Member seed = Member.GRANT_BY_DEFAULT_FOR_TEST
+                        ? Member.vip(0L, Member.SOURCE_TEST) : Member.free();
+                try {
+                    root.put("member", seed.toJson());
+                } catch (JSONException ignored) {
+                    // ignore
+                }
+                save();
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ 会员
+    /**
+     * 当前会员记录；没有记录时回退到测试期默认开通的会员。
+     * 解析损坏一律按未开通处理——宁可少放一个音色，不能错放权益。
+     */
+    @NonNull
+    public Member getMember() {
+        synchronized (lock) {
+            JSONObject m = root.optJSONObject("member");
+            if (m != null && m.length() > 0) {
+                return Member.fromJson(m.toString());
+            }
+        }
+        return Member.GRANT_BY_DEFAULT_FOR_TEST
+                ? Member.vip(0L, Member.SOURCE_TEST) : Member.free();
+    }
+
+    public void setMember(@NonNull Member member) {
+        synchronized (lock) {
+            try {
+                root.put("member", member.toJson());
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+        save();
+    }
+
+    /** 是否会员（会过期的会员以当前时间判定是否有效）。 */
+    public boolean isMember() {
+        return getMember().isActive();
     }
 
     @NonNull

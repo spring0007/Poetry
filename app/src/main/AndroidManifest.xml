@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 下载诗库用。除此之外 App 不发起任何网络请求，朗读全在手机上完成 -->
+    <!-- 下载诗库；以及腾讯云在线语音合成（见 media.QCloudTts） -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--

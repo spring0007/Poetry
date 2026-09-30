@@ -158,6 +158,8 @@
     <string name="tts_tag_female">女声</string>
     <string name="tts_voice_label">发音人</string>
     <string name="tts_voice_meta">%1$d 种可用</string>
+    <!-- 列表里混着锁定的云端音色时，把「能选的」和「要会员的」分开说 -->
+    <string name="tts_voice_meta_locked">%1$d 种可用 · %2$d 种需会员</string>
 
     <!--
         发音人。名字是按音色气质起的：模型自带的 speakers.txt 里只有匿名 id
@@ -194,6 +196,69 @@
     <string name="voice_role_mingyue_desc">清越悠远 · 适合咏月</string>
     <string name="voice_role_lingxi_name">灵犀</string>
     <string name="voice_role_lingxi_desc">清亮灵动 · 适合抒情</string>
+
+    <!--
+        腾讯云语音合成提供的在线发音人。名字用腾讯官方音色名（智瑜、智云……），
+        不在 App 里另起名——它们是云端服务侧的固定 id，改名反而让用户对不上号。
+        音色 id 见 https://cloud.tencent.com/document/product/1073/92668 。
+        101xxx 是基础/精品音色，501xxx 是大模型音色（更自然、更贵）。
+    -->
+    <string name="voice_qcloud_zhiyu_name">智瑜</string>
+    <string name="voice_qcloud_zhiyu_desc">情感饱满 · 适合婉约抒情</string>
+    <string name="voice_qcloud_zhiyun_name">智云</string>
+    <string name="voice_qcloud_zhiyun_desc">沉稳从容 · 适合怀古咏史</string>
+    <string name="voice_qcloud_zhiyan_name">智燕</string>
+    <string name="voice_qcloud_zhiyan_desc">字正腔圆 · 适合长篇叙事</string>
+    <string name="voice_qcloud_zhihui_name">智辉</string>
+    <string name="voice_qcloud_zhihui_desc">端正大气 · 适合豪放言志</string>
+    <string name="voice_qcloud_zhimeng_name">智萌</string>
+    <string name="voice_qcloud_zhimeng_desc">稚气清亮 · 适合童趣小令</string>
+    <string name="voice_qcloud_zhitian_name">智甜</string>
+    <string name="voice_qcloud_zhitian_desc">甜美灵动 · 适合闺秀小令</string>
+    <string name="voice_qcloud_zhitong_name">智彤</string>
+    <string name="voice_qcloud_zhitong_desc">粤语吟诵 · 别样韵味</string>
+    <string name="voice_qcloud_zhirui_name">智瑞</string>
+    <string name="voice_qcloud_zhirui_desc">俊朗有力 · 适合边塞军旅</string>
+    <string name="voice_qcloud_zhixi_name">智希</string>
+    <string name="voice_qcloud_zhixi_desc">温润亲和 · 适合田园山水</string>
+    <string name="voice_qcloud_zhike_name">智柯</string>
+    <string name="voice_qcloud_zhike_desc">醇厚低回 · 适合山水隐逸</string>
+    <string name="voice_qcloud_zhibin_name">智斌</string>
+    <string name="voice_qcloud_zhibin_desc">大模型朗读 · 适合长篇诗文</string>
+    <string name="voice_qcloud_zhiju_name">智菊</string>
+    <string name="voice_qcloud_zhiju_desc">大模型朗读 · 声线舒展</string>
+
+    <!-- 音色列表：云端音色标签与会员锁定态 -->
+    <string name="voice_tag_online">云端</string>
+    <string name="voice_tag_member">会员</string>
+    <string name="voice_locked_action">解锁</string>
+    <string name="voice_member_required">开通会员后可使用腾讯云音色</string>
+    <string name="voice_member_title">腾讯云音色</string>
+    <string name="voice_member_msg">云端音色由腾讯云语音合成提供，音质更自然，需开通会员后使用。测试期可在「语音设置」页顶部的会员开关里打开。</string>
+    <string name="voice_member_positive">知道了</string>
+    <!-- 这两条走 Toast：MIUI 的 Toast 只给两行，长一点就被截成「……」，所以控制在 24 字上下 -->
+    <string name="voice_member_suspended">「%1$s」需开通会员；选择已保留，开通后自动恢复。</string>
+    <string name="voice_cloud_unavailable">「%1$s」暂时不可用；选择已保留，恢复后自动切回。</string>
+
+    <!-- 语音设置：云端引擎状态与会员开关 -->
+    <string name="tts_engine_online_ready">腾讯云语音就绪 · %1$d 个音色</string>
+    <string name="tts_engine_online_unauth">腾讯云音色未配置密钥（local.properties）</string>
+    <string name="tts_engine_online_need_member">腾讯云音色需开通会员</string>
+    <string name="tts_cloud_no_voice">腾讯云音色暂不可用</string>
+    <string name="tts_cloud_synth_failed">合成请求失败：%1$s</string>
+    <string name="tts_cloud_synth_error">合成请求异常：%1$s</string>
+    <string name="tts_cloud_play_failed">播放失败：%1$s</string>
+    <string name="tts_cloud_unknown_error">未知错误</string>
+    <!-- 服务端的错误码翻成人话：SDK 自带的 message 是「Server response error」这类笼统说法，
+         用户拿它分不清是额度用完了还是密钥停了，更不知道该做什么 -->
+    <string name="tts_cloud_quota_exhausted">云端音色额度已用尽，请在腾讯云控制台续购资源包</string>
+    <string name="tts_cloud_pkg_missing">云端音色尚未开通资源包，请在腾讯云控制台开通</string>
+    <string name="tts_cloud_auth_failed">云端音色鉴权失败，请检查密钥与授权</string>
+    <string name="tts_cloud_fallback">云端音色暂时不可用，已改用内置音色</string>
+    <string name="tts_engine_join">%1$s · %2$s</string>
+    <string name="tts_member_label">会员音色权限</string>
+    <string name="tts_member_on">体验中 · 全部音色可用</string>
+    <string name="tts_member_off">未开通 · 仅离线音色</string>
     <string name="tts_pitch">音调</string>
     <string name="tts_volume">音量</string>
     <string name="tts_ratio_value">%.1f×</string>

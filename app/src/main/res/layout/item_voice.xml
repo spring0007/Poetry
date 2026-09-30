@@ -89,4 +89,14 @@
         android:visibility="invisible"
         app:tint="@color/color_primary" />
 
+    <ImageView
+        android:id="@+id/voiceLock"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="@dimen/space_1"
+        android:contentDescription="@string/voice_tag_member"
+        android:src="@drawable/ic_lock"
+        android:visibility="gone"
+        app:tint="@color/color_primary" />
+
 </LinearLayout>
