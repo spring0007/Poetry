@@ -1,5 +1,6 @@
 package com.example.poetry.adapter;
 
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.poetry.R;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.databinding.ItemHotPoemBinding;
+import com.example.poetry.util.PoemLength;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,10 +36,12 @@ public class HotPoemAdapter extends RecyclerView.Adapter<HotPoemAdapter.Holder> 
         this.listener = listener;
     }
 
+    /**
+     * 替换整份列表。走 diff 而不是 {@code notifyDataSetChanged()}，规则见 {@link PoemDiff}
+     * —— 排名徽标是 position 派生的，那份规则把位置也算作内容，挪过位的条目会重绑。
+     */
     public void submit(@NonNull List<Poem> poems) {
-        data.clear();
-        data.addAll(poems);
-        notifyDataSetChanged();
+        PoemDiff.submit(this, data, poems);
     }
 
     @NonNull
@@ -77,20 +81,22 @@ public class HotPoemAdapter extends RecyclerView.Adapter<HotPoemAdapter.Holder> 
                         R.color.white));
             } else {
                 ViewCompat.setBackgroundTintList(binding.hotRank, ColorStateList.valueOf(
-                        ContextCompat.getColor(itemView.getContext(),
-                                poem.getKind().getLightColorRes())));
-                binding.hotRank.setTextColor(ContextCompat.getColor(itemView.getContext(),
-                        poem.getKind().getColorRes()));
+                        KindColors.light(itemView.getContext(), poem.getKind())));
+                binding.hotRank.setTextColor(KindColors.solid(itemView.getContext(), poem.getKind()));
             }
 
             binding.hotBadge.setText(poem.getKind().getLabel());
-            binding.hotBadge.setTextColor(ContextCompat.getColor(itemView.getContext(),
-                    poem.getKind().getColorRes()));
+            binding.hotBadge.setTextColor(KindColors.solid(itemView.getContext(), poem.getKind()));
 
             binding.hotTitle.setText(poem.getTitle());
             binding.hotAuthor.setText(poem.getAuthorLabel());
-            binding.hotValue.setText(itemView.getContext().getString(R.string.hot_value,
-                    poem.getHotPercent(), poem.getLineCount()));
+            // 热度榜走的是远端列表接口，条目没有正文，篇幅只能按 nChar 写「N 字」；
+            // 连 nChar 都没有时只显示热度，别在后面挂一个空的「 · 」
+            Context context = itemView.getContext();
+            String length = PoemLength.label(context, poem);
+            binding.hotValue.setText(length.isEmpty()
+                    ? context.getString(R.string.hot_value_only, poem.getHotPercent())
+                    : context.getString(R.string.hot_value, poem.getHotPercent(), length));
 
             binding.getRoot().setOnClickListener(v -> listener.onPoemClick(poem));
             binding.getRoot().setContentDescription(

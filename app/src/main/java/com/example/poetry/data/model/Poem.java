@@ -62,8 +62,34 @@ public class Poem implements Parcelable {
     /** 创作背景：poem_extras.creative_background */
     private String creativeBackground;
 
+    /**
+     * 服务端给的摘录（列表接口的 {@code excerpt}）。
+     *
+     * <p>列表接口**故意不带 body**（见 {@code JsonMapper} 的类注释：详情页靠
+     * {@code getBody().isEmpty()} 判断要不要再拉一次全文），所以远端那一页的卡片没有正文可切。
+     * 这里单独存一份，正是给那种情况兜底的。
+     *
+     * <p>**绝不能把它写进 {@link #body}**：一旦正文非空，详情页就再也不会去取全文，
+     * 用户只能看到前两行。
+     */
+    @NonNull
+    private String excerptFromServer;
+
     /** 收藏时间（毫秒时间戳，0 表示未记录）；仅本地使用，不来自诗库 */
     private long favoriteAt;
+
+    /**
+     * {@link #getExcerpt()} / {@link #getLineCount()} 的备忘。
+     *
+     * <p>卡片每次绑定都要问这两样，而它们都要把整篇正文按 '\n' 切一遍 —— 长列表滚动时
+     * 这是纯粹白烧的 CPU。key 用 {@link #body} 本身而不是「有没有被缓存过」：
+     * 对象是可变的（{@code setBody}），拿身体当 key 就不会读到上一次的旧值。
+     */
+    @Nullable
+    private String derivedFor;
+    @NonNull
+    private String excerptCache = "";
+    private int lineCountCache;
 
     public Poem() {
         this.title = "";
@@ -80,6 +106,7 @@ public class Poem implements Parcelable {
         this.appreciation = "";
         this.introduction = "";
         this.creativeBackground = "";
+        this.excerptFromServer = "";
     }
 
     // ---------------------------------------------------------------- 基础字段
@@ -198,6 +225,16 @@ public class Poem implements Parcelable {
         this.score = score;
     }
 
+    /** 服务端列表接口给的摘录；本地数据没有这个字段，为空串（见 {@link #excerptFromServer}） */
+    @NonNull
+    public String getExcerptFromServer() {
+        return excerptFromServer;
+    }
+
+    public void setExcerptFromServer(@Nullable String excerptFromServer) {
+        this.excerptFromServer = excerptFromServer == null ? "" : excerptFromServer;
+    }
+
     public int getNChar() {
         return nChar;
     }
@@ -295,24 +332,39 @@ public class Poem implements Parcelable {
     }
 
     public int getLineCount() {
-        return getLines().size();
+        ensureDerived();
+        return lineCountCache;
     }
 
     /** 卡片摘录：取前两行，过长时截断 */
     @NonNull
     public String getExcerpt() {
-        List<String> lines = getLines();
-        if (lines.isEmpty()) {
-            return "";
+        ensureDerived();
+        // 没有正文时退回服务端那份额外给的摘录：远端列表接口只带 excerpt 不带 body
+        // （见 JsonMapper 类注释），不这么兜一下，远端页的卡片就是一片空白。
+        return excerptCache.isEmpty() ? excerptFromServer : excerptCache;
+    }
+
+    /**
+     * 一次把「行数」与「摘录」都算出来并记下（见 {@link #derivedFor}）。
+     *
+     * <p>两者共用一次按 '\n' 的切分 —— 卡片上它们总是成对出现，分开缓存等于切两遍。
+     */
+    private void ensureDerived() {
+        if (body.equals(derivedFor)) {
+            return;
         }
+        String[] parts = body.isEmpty() ? new String[0] : body.split("\n");
+        lineCountCache = parts.length;
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < lines.size() && i < 2; i++) {
+        for (int i = 0; i < parts.length && i < 2; i++) {
             if (i > 0) {
                 sb.append('\n');
             }
-            sb.append(lines.get(i));
+            sb.append(parts[i]);
         }
-        return sb.toString();
+        excerptCache = sb.toString();
+        derivedFor = body;
     }
 
     /** 标签列表 */
@@ -457,6 +509,8 @@ public class Poem implements Parcelable {
         uid = in.readString();
         introduction = in.readString();
         creativeBackground = in.readString();
+        // 走 setter 而不是直接赋值：readString 的返回类型可空，setter 负责归一成空串
+        setExcerptFromServer(in.readString());
     }
 
     @Override
@@ -480,6 +534,7 @@ public class Poem implements Parcelable {
         dest.writeString(uid);
         dest.writeString(introduction);
         dest.writeString(creativeBackground);
+        dest.writeString(excerptFromServer);
     }
 
     @Override

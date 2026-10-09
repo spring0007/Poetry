@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 分类页：按体裁 / 按朝代 / 按主题 / 热门作者 -->
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+<androidx.core.widget.NestedScrollView
     android:id="@+id/categoryScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
     android:clipToPadding="false"
     android:paddingStart="@dimen/page_margin"
     android:paddingTop="@dimen/space_4"
@@ -96,3 +100,14 @@
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
+
+    <!-- 四块数据各查各的，都到齐才收圈（见 CategoryFragment#loadAll）。
+         叠在滚动视图之上而不是塞进它的第一屏：内容是动态撑高的，塞进去会在加载完时把
+         下面的宫格整体顶一下。 -->
+    <ProgressBar
+        android:id="@+id/categoryLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center" />
+
+</FrameLayout>

@@ -39,23 +39,30 @@
             android:layout_height="@dimen/size_icon_button" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/poemList"
+    <!-- 列表与加载圈叠在一起：加载圈原来排在列表**下面**，而列表占满了整屏（weight=1），
+         列表为空时它就被顶到屏幕外 —— 恰好是最需要它的那一刻看不见。叠放还有个好处：
+         刷新已有内容时圈转在内容上方，不会把正在看的卡片顶下去。 -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingStart="@dimen/page_margin"
-        android:paddingEnd="@dimen/page_margin"
-        android:paddingBottom="@dimen/space_6" />
+        android:layout_weight="1">
 
-    <ProgressBar
-        android:id="@+id/loadingBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="@dimen/space_8"
-        android:visibility="gone" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/poemList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="@dimen/page_margin"
+            android:paddingEnd="@dimen/page_margin"
+            android:paddingBottom="@dimen/space_6" />
+
+        <ProgressBar
+            android:id="@+id/loadingBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <include
         android:id="@+id/emptyState"

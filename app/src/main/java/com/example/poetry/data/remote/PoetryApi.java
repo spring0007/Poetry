@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.example.poetry.data.model.Author;
 import com.example.poetry.data.model.Category;
+import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.Voice;
 
@@ -45,11 +46,11 @@ public interface PoetryApi {
      * @param page 从 1 开始
      */
     @NonNull
-    List<Poem> search(@NonNull String keyword, int page, int pageSize) throws ApiException;
+    Page<Poem> search(@NonNull String keyword, int page, int pageSize) throws ApiException;
 
     /** 热度榜（发现页默认列表 / 「热门」入口） */
     @NonNull
-    List<Poem> featured(int page, int pageSize) throws ApiException;
+    Page<Poem> featured(int page, int pageSize) throws ApiException;
 
     /**
      * 每日推荐（同一天内所有人拿到同一首）。返回完整详情，可直接进详情页。
@@ -83,11 +84,12 @@ public interface PoetryApi {
 
     /** 按体裁列作品（{@code kindCode} 见 {@code PoemKind}） */
     @NonNull
-    List<Poem> listByKind(@NonNull String kindCode, int page, int pageSize) throws ApiException;
+    Page<Poem> listByKind(@NonNull String kindCode, int page, int pageSize) throws ApiException;
 
     /** 按朝代列作品（{@code dynastyCode} 见 {@code Dynasty}） */
     @NonNull
-    List<Poem> listByDynasty(@NonNull String dynastyCode, int page, int pageSize) throws ApiException;
+    Page<Poem> listByDynasty(@NonNull String dynastyCode, int page, int pageSize)
+            throws ApiException;
 
     /** 热门作者 */
     @NonNull
@@ -97,9 +99,15 @@ public interface PoetryApi {
     @Nullable
     Author author(@NonNull String ref) throws ApiException;
 
-    /** 某作者的作品 */
+    /**
+     * 某作者的作品。
+     *
+     * <p>这个接口的响应体是 {@code {author,items,page,size}} —— **没有 {@code total}**，
+     * 所以 {@link Page#getTotal()} 恒为 {@link Page#TOTAL_UNKNOWN}，
+     * 「还有没有下一页」只能靠「本页是否装满」判断。
+     */
     @NonNull
-    List<Poem> authorPoems(@NonNull String authorRef, int limit) throws ApiException;
+    Page<Poem> authorPoems(@NonNull String authorRef, int page, int pageSize) throws ApiException;
 
     /** 体裁宫格（一次拿全，避免串行发三次） */
     @NonNull

@@ -12,6 +12,7 @@ import com.example.poetry.data.local.SeedDataSource;
 import com.example.poetry.data.local.UserStore;
 import com.example.poetry.data.model.Author;
 import com.example.poetry.data.model.Category;
+import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
 import com.example.poetry.data.model.Voice;
@@ -27,10 +28,13 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 统一数据入口。
@@ -234,7 +238,7 @@ public final class PoetryRepository {
      * 更新后的标志位再发一次。不跳过的话，安装途中的一次查询就可能把 DOWNLOADING 冲成 IDLE，
      * 界面上的进度条会莫名其妙消失。
      */
-    private void publishReadiness(boolean localReady, boolean hasFile) {
+    private synchronized void publishReadiness(boolean localReady, boolean hasFile) {
         DbStatus current = dbStatus;
         if (current.busy()) {
             return;
@@ -315,13 +319,15 @@ public final class PoetryRepository {
 
     // ------------------------------------------------------------ 作品
 
-    /** 热门榜（发现页 / 「热门」入口） */
+    /**
+     * 热门榜（发现页 / 「热门」入口）。
+     *
+     * <p>**本地优先**：先把本地库（或内置示例）的头几条回调出去，界面立刻有东西，
+     * 远端回来之后再回调一次。用这个方法的界面都是「替换」语义
+     * （{@code adapter.submit()}），收到两次不会叠成两份。
+     */
     public void featured(int limit, @NonNull Callback<List<Poem>> callback) {
-        run(() -> fetch("featured",
-                () -> remote.featured(1, limit),
-                () -> database.isReady()
-                        ? database.featured(limit)
-                        : SeedDataSource.featured(limit)), callback);
+        listFirstScreen(PoemQuery.hot(), limit, listing(callback));
     }
 
     /**
@@ -399,26 +405,29 @@ public final class PoetryRepository {
         return all.get(start);
     }
 
+    /** 综合检索。本地优先，远端回来再刷一次（同 {@link #featured}）。 */
     public void search(@NonNull String keyword, int limit, @NonNull Callback<List<Poem>> callback) {
-        run(() -> fetch("search",
-                () -> remote.search(keyword, 1, limit),
-                () -> database.isReady()
-                        ? database.search(keyword, limit)
-                        : SeedDataSource.search(keyword, limit)), callback);
+        listFirstScreen(PoemQuery.search(keyword), limit, listing(callback));
     }
 
     // ------------------------------------------------------------ 分类
 
+    /** 体裁宫格。本地优先 —— 宫格是分类页的第一屏，不该等一个网络往返。 */
     public void kindCategories(@NonNull Callback<List<Category>> callback) {
-        run(() -> fetch("kindCategories",
-                () -> remote.kindCategories(),
-                () -> database.kindCategories()), callback);
+        localFirst("kindCategories",
+                () -> database.isReady()
+                        ? database.kindCategories()
+                        : SeedDataSource.kindCategories(),
+                () -> remote.kindCategories(), callback);
     }
 
+    /** 朝代宫格。本地优先，同 {@link #kindCategories}。 */
     public void dynastyCategories(@NonNull Callback<List<Category>> callback) {
-        run(() -> fetch("dynastyCategories",
-                () -> remote.dynastyCategories(),
-                () -> database.dynastyCategories()), callback);
+        localFirst("dynastyCategories",
+                () -> database.isReady()
+                        ? database.dynastyCategories()
+                        : SeedDataSource.dynastyCategories(),
+                () -> remote.dynastyCategories(), callback);
     }
 
     /**
@@ -429,9 +438,15 @@ public final class PoetryRepository {
      * 但那是另一套分类，两边混用会让同一张宫格在线和离线时长得不一样，
      * 而「同一个界面在两台设备上不同」是很难向用户解释的。
      * 等确定要以后端标签为准时，改这一个方法即可。
+     *
+     * <p>**首次慢、之后免费**：这 12 个篇数各是一次 {@code body LIKE} 全表扫描
+     * （{@link PoetryDatabase#themeCategories}），但诗库是静态的，结果在数据库里
+     * 缓存住（{@code themeCountCache}，换库时清空），第二次调用只剩遍历 12 个主题的开销。
+     * 所以这里不额外做线程调度取巧，走 {@link #runLocal} 直送 io 池——
+     * 唯一要避免的是让这段纯本地 SQL 去占网络池的线程。
      */
     public void themeCategories(@NonNull Callback<List<Category>> callback) {
-        run(() -> {
+        runLocal(() -> {
             database.ensureOpen();
             markSource(database.isReady() ? Source.LOCAL : Source.SEED);
             return database.isReady()
@@ -440,51 +455,39 @@ public final class PoetryRepository {
         }, callback);
     }
 
-    public void topAuthors(int limit, @NonNull Callback<List<Author>> callback) {
-        run(() -> fetch("topAuthors",
-                () -> remote.topAuthors(limit),
+    /** 热门作者横排。本地优先，同 {@link #kindCategories}。 */
+    public void topAuthors(final int limit, @NonNull Callback<List<Author>> callback) {
+        localFirst("topAuthors",
                 () -> database.isReady()
                         ? database.topAuthors(limit)
-                        : SeedDataSource.topAuthors(limit)), callback);
+                        : SeedDataSource.topAuthors(limit),
+                () -> remote.topAuthors(limit), callback);
     }
 
-    public void listByKind(@NonNull String kindCode, int limit, @NonNull Callback<List<Poem>> callback) {
-        run(() -> fetch("kind:" + kindCode,
-                () -> remote.listByKind(kindCode, 1, limit),
-                () -> {
-                    PoemKind kind = PoemKind.fromCode(kindCode);
-                    return database.isReady()
-                            ? database.listByKind(kind, limit)
-                            : SeedDataSource.listByKind(kind, limit);
-                }), callback);
+    /** 按体裁列作品。本地优先，远端回来再刷一次（同 {@link #featured}）。 */
+    public void listByKind(@NonNull String kindCode, int limit,
+                           @NonNull Callback<List<Poem>> callback) {
+        listFirstScreen(PoemQuery.kind(kindCode), limit, listing(callback));
     }
 
-    public void listByDynasty(@NonNull String dynastyCode, int limit, @NonNull Callback<List<Poem>> callback) {
-        run(() -> fetch("dynasty:" + dynastyCode,
-                () -> remote.listByDynasty(dynastyCode, 1, limit),
-                () -> database.isReady()
-                        ? database.listByDynasty(dynastyCode, limit)
-                        : SeedDataSource.listByDynasty(dynastyCode, limit)), callback);
+    /** 按朝代列作品。本地优先，远端回来再刷一次（同 {@link #featured}）。 */
+    public void listByDynasty(@NonNull String dynastyCode, int limit,
+                              @NonNull Callback<List<Poem>> callback) {
+        listFirstScreen(PoemQuery.dynasty(dynastyCode), limit, listing(callback));
     }
 
     /**
      * 某作者的作品。
      *
      * <p>{@code authorRef} 用 {@link Author#getLookupRef()}（uid 优先）。
-     * 本地库的作品表是按数字 {@code author_id} 关联的，所以本地图里要先换算一次。
+     * 本地库的作品表是按数字 {@code author_id} 关联的，换算这一步在
+     * {@link #localPage} 里（那里才知道库到底有没有就位）。
+     *
+     * <p>本地优先，远端回来再刷一次（同 {@link #featured}）。
      */
     public void listByAuthor(@NonNull String authorRef, int limit,
                              @NonNull Callback<List<Poem>> callback) {
-        run(() -> fetch("authorPoems:" + authorRef,
-                () -> remote.authorPoems(authorRef, limit),
-                () -> {
-                    long localAuthorId = localAuthorId(authorRef);
-                    if (localAuthorId <= 0) {
-                        // 本库里没这位作者（或库还没就位）：交给种子数据兜底
-                        return SeedDataSource.listByAuthor(idOf(authorRef), limit);
-                    }
-                    return database.listByAuthor(localAuthorId, limit);
-                }), callback);
+        listFirstScreen(PoemQuery.author(authorRef), limit, listing(callback));
     }
 
     /**
@@ -738,6 +741,281 @@ public final class PoetryRepository {
         store.removeHistory(poem);
     }
 
+    // ------------------------------------------------------------ 分页取数（本地优先）
+
+    /**
+     * 分页结果的回调，**最多被调两次**。
+     *
+     * <p>第一次 {@code fromCache=true}：本地库（或内置示例）—— 手上立刻就有，不等网络。
+     * 第二次 {@code fromCache=false}：远端拿回来的权威结果。
+     *
+     * <p>远端那一次不来是**正常情况**（没网、后端没配、正在熔断）：界面保留第一次的
+     * 内容即可，不必显示任何错误 —— 用户要看的是诗，不是一份网络报告。
+     * {@link #onError} 只在「本地这一层也拿不到」时才来。
+     */
+    public interface PageCallback {
+
+        /**
+         * @param fromCache true = 本地/内置数据，false = 远端
+         */
+        void onPage(@NonNull Page<Poem> page, boolean fromCache);
+
+        /** 本地这层也失败了（库打不开之类），界面该显示空态了。 */
+        void onError(@NonNull Throwable error);
+    }
+
+    /**
+     * 列表首屏：**本地先出图，远端回来再刷一次**。
+     *
+     * <p>这是列表类界面（分类列表、发现页、作者作品）的标准取数方式。为什么不是
+     * 「远端优先」：后端读超时是 8 秒（{@code ApiConfig.READ_TIMEOUT_MS}），
+     * 远端优先意味着点进「诗」要盯着加载条等一个网络往返才见到第一条；
+     * 而本地库里就有全量作品，出图是毫秒级的。
+     */
+    public void listFirstScreen(@NonNull PoemQuery query, int size,
+                                @NonNull PageCallback callback) {
+        listFirstScreen(query, 1, size, callback);
+    }
+
+    /** 同 {@link #listFirstScreen(PoemQuery, int, PageCallback)}，指定页号。 */
+    public void listFirstScreen(@NonNull final PoemQuery query, final int page, final int size,
+                                @NonNull final PageCallback callback) {
+        // 本地那一页留个引用：远端回来时要拿它补正文，见 carryOverBodies。
+        // 用 AtomicReference 是因为写它的是 io 线程、读它的是 net 线程（两个池，没有
+        // 天然的 happens-before）。
+        final AtomicReference<Page<Poem>> cachedPage = new AtomicReference<>();
+        listLocal(query, page, size, new PageCallback() {
+            @Override
+            public void onPage(@NonNull Page<Poem> p, boolean fromCache) {
+                cachedPage.set(p);
+                callback.onPage(p, true);
+            }
+
+            @Override
+            public void onError(@NonNull Throwable error) {
+                callback.onError(error);
+            }
+        });
+        listRemote(query, page, size, new PageCallback() {
+            @Override
+            public void onPage(@NonNull Page<Poem> p, boolean fromCache) {
+                carryOverBodies(p, cachedPage.get());
+                callback.onPage(p, false);
+            }
+
+            @Override
+            public void onError(@NonNull Throwable error) {
+                // 本地那层已经画过一屏了，远端挂掉不值得惊动用户。真要排查看这条日志。
+                LogUtil.w("远端刷新失败（" + query + "），保留本地内容：" + error);
+            }
+        });
+    }
+
+    /**
+     * 把本地那一页里已有的正文补到远端这一页上。
+     *
+     * <p>后端的列表接口有意在 {@code items} 里**不带正文**（见 {@code JsonMapper} 的类注释），
+     * 而卡片上的摘录与行数都是从正文派生的。不补的话，「本地先出图 → 远端替换」这一步会把
+     * 已经画好的摘录整片抹掉：同一首诗明明还在原地，字却没了。
+     *
+     * <p>只补**空**正文，远端真给了正文就以远端为准 —— 这条规则让本方法在任何调用顺序下
+     * 都不会用旧数据盖住新数据，所以调用方不必关心本地/远端谁先到。
+     */
+    private static void carryOverBodies(@NonNull Page<Poem> fresh, @Nullable Page<Poem> cached) {
+        if (cached == null || cached.isEmpty() || fresh.isEmpty()) {
+            return;
+        }
+        Map<String, String> bodies = new HashMap<>();
+        for (Poem poem : cached.getItems()) {
+            if (!poem.getBody().isEmpty()) {
+                bodies.put(poem.identityKey(), poem.getBody());
+            }
+        }
+        if (bodies.isEmpty()) {
+            return;
+        }
+        for (Poem poem : fresh.getItems()) {
+            if (poem.getBody().isEmpty()) {
+                String body = bodies.get(poem.identityKey());
+                if (body != null) {
+                    poem.setBody(body);
+                }
+            }
+        }
+    }
+
+    /**
+     * 只读本地（库没就位就用内置示例），跑在 {@link AppExecutors#io()} 上，**立即**回调。
+     *
+     * <p>本地这一层**一定会回调**，哪怕是空的一页 —— 调用方靠它定下「第一页已经就位」，
+     * 也靠它决定要不要继续翻页。
+     */
+    public void listLocal(@NonNull final PoemQuery query, final int page, final int size,
+                          @NonNull final PageCallback callback) {
+        AppExecutors.get().io(() -> {
+            final Page<Poem> result;
+            try {
+                result = localPage(query, page, size);
+            } catch (Exception e) {
+                LogUtil.w("本地分页取数失败（" + query + "）", e);
+                AppExecutors.get().main(() -> callback.onError(e));
+                return;
+            }
+            // 一次顺带的「库现在能用了吗」检查，与 run() 里那句同一个用意
+            publishReadiness(database.isReady(), database.filePresent());
+            AppExecutors.get().main(() -> callback.onPage(result, true));
+        });
+    }
+
+    /**
+     * 只打远端，跑在 {@link AppExecutors#net()} 上。
+     *
+     * <p>失败一律走 {@link PageCallback#onError}，包括「后端没配 / 没网 / 熔断中」——
+     * 那几种情况连请求都不会发出去，但仍算这一层失败，语义上是一致的。
+     */
+    public void listRemote(@NonNull final PoemQuery query, final int page, final int size,
+                           @NonNull final PageCallback callback) {
+        AppExecutors.get().net(() -> {
+            final Page<Poem> result;
+            try {
+                result = remotePage(query, page, size);
+            } catch (Throwable e) {
+                LogUtil.w("远端分页取数失败（" + query + "）", e);
+                AppExecutors.get().main(() -> callback.onError(e));
+                return;
+            }
+            markSource(Source.REMOTE);
+            AppExecutors.get().main(() -> callback.onPage(result, false));
+        });
+    }
+
+    /** 本地那一页。库没就位就退回内置示例。 */
+    @NonNull
+    private Page<Poem> localPage(@NonNull PoemQuery query, int page, int size) {
+        int n = Math.max(1, size);
+        int p = Math.max(1, page);
+        String mode = query.getMode();
+        String value = query.getValue();
+
+        // 库还没就位：内置示例顶上。总数就报这一页的条数，于是 hasMore() 是 false ——
+        // 示例数据一共就十几条，为它翻页没有意义，界面上那点内容远端一回来就会被替换掉。
+        if (!database.isReady()) {
+            List<Poem> items = seedPage(query, n);
+            return new Page<>(items, items.size(), 1, n);
+        }
+
+        // 检索与主题：本地只给得出第一页（见 PoemQuery#isLocallyPaged），往后交给远端
+        if (!query.isLocallyPaged()) {
+            if (p > 1) {
+                return Page.empty(p, n);
+            }
+            List<Poem> hits = PoemQuery.MODE_THEME.equals(mode)
+                    ? database.listByTheme(value, n)
+                    : database.search(value, n);
+            return new Page<>(hits, hits.size(), 1, n);
+        }
+
+        int offset = (p - 1) * n;
+        List<Poem> items;
+        if (PoemQuery.MODE_KIND.equals(mode)) {
+            items = database.listByKind(PoemKind.fromCode(value), n, offset);
+        } else if (PoemQuery.MODE_DYNASTY.equals(mode)) {
+            items = database.listByDynasty(value, n, offset);
+        } else if (PoemQuery.MODE_HOT.equals(mode)) {
+            items = database.featured(n, offset);
+        } else if (PoemQuery.MODE_AUTHOR.equals(mode)) {
+            long authorId = localAuthorId(value);
+            if (authorId <= 0) {
+                // 本库里没这位作者（作者是从远端宫格点进来的）：示例数据兜底，只有第一页
+                if (p > 1) {
+                    return Page.empty(p, n);
+                }
+                List<Poem> seed = SeedDataSource.listByAuthor(idOf(value), n);
+                return new Page<>(seed, seed.size(), 1, n);
+            }
+            items = database.listByAuthor(authorId, n, offset);
+        } else {
+            return Page.empty(p, n);
+        }
+        // 本地不额外跑 COUNT：翻页的「还有没有下一页」由 Page#hasMore() 退化成
+        // 「这一页装满了没有」。多跑一次全表 COUNT 换一个更准的界标，不划算。
+        return new Page<>(items, Page.TOTAL_UNKNOWN, p, n);
+    }
+
+    /** 远端那一页。 */
+    @NonNull
+    private Page<Poem> remotePage(@NonNull PoemQuery query, int page, int size)
+            throws ApiException {
+        if (!canUseRemote()) {
+            throw new ApiException(ApiException.NOT_IMPLEMENTED, "远端不可用");
+        }
+        int p = Math.max(1, page);
+        int n = Math.max(1, size);
+        String mode = query.getMode();
+        String value = query.getValue();
+        if (PoemQuery.MODE_HOT.equals(mode)) {
+            return remote.featured(p, n);
+        }
+        if (PoemQuery.MODE_KIND.equals(mode)) {
+            return remote.listByKind(value, p, n);
+        }
+        if (PoemQuery.MODE_DYNASTY.equals(mode)) {
+            return remote.listByDynasty(value, p, n);
+        }
+        if (PoemQuery.MODE_AUTHOR.equals(mode)) {
+            return remote.authorPoems(value, p, n);
+        }
+        // 检索与主题都落到综合检索
+        return remote.search(value, p, n);
+    }
+
+    /** 内置示例数据的一页。 */
+    @NonNull
+    private static List<Poem> seedPage(@NonNull PoemQuery query, int limit) {
+        String mode = query.getMode();
+        String value = query.getValue();
+        if (PoemQuery.MODE_HOT.equals(mode)) {
+            return SeedDataSource.featured(limit);
+        }
+        if (PoemQuery.MODE_KIND.equals(mode)) {
+            return SeedDataSource.listByKind(PoemKind.fromCode(value), limit);
+        }
+        if (PoemQuery.MODE_DYNASTY.equals(mode)) {
+            return SeedDataSource.listByDynasty(value, limit);
+        }
+        if (PoemQuery.MODE_AUTHOR.equals(mode)) {
+            return SeedDataSource.listByAuthor(idOf(value), limit);
+        }
+        return SeedDataSource.search(value, limit);
+    }
+
+    /**
+     * 把两次投递的 {@link PageCallback} 收敛成老的单次 {@link Callback}。
+     *
+     * <p>空的第一页**不投**：库里恰好没有这一条时，先投一个空列表会让界面闪一下
+     * 「暂无内容」，几百毫秒后远端又把内容填回来。宁可保持加载态，等远端那一次；
+     * 远端也失败了，调用方才会收到 onError，那时候显示空态才是对的。
+     *
+     * <p>用它的调用方都必须能接受 {@code onData} 来两次（都是替换语义）。
+     */
+    @NonNull
+    private static PageCallback listing(@NonNull final Callback<List<Poem>> callback) {
+        return new PageCallback() {
+            @Override
+            public void onPage(@NonNull Page<Poem> page, boolean fromCache) {
+                if (fromCache && page.isEmpty()) {
+                    return;
+                }
+                callback.onData(page.getItems());
+            }
+
+            @Override
+            public void onError(@NonNull Throwable error) {
+                callback.onError(error);
+            }
+        };
+    }
+
     // ------------------------------------------------------------ 三级取数
 
     /** 远端那一步。允许抛 {@link ApiException}。 */
@@ -882,7 +1160,10 @@ public final class PoetryRepository {
     // ------------------------------------------------------------ 线程封装
 
     private <T> void run(@NonNull Callable<T> task, @NonNull Callback<T> callback) {
-        AppExecutors.get().io(() -> {
+        // 这一趟会不会先去碰网络？会的话放网络池：8 秒的读超时不该占着本地库那两个线程
+        // （本地列表查询就排队在这两个线程上，正是「点进分类页要等一下」的成因）。
+        // 判断在提交前做，fetch() 里还会再判一次 —— 中途网络断了，最多是白占一个网络线程。
+        AppExecutors.get().call(canUseRemote(), () -> {
             try {
                 T data = task.call();
                 // 每次查询都是一次「库现在能用了吗」的顺带检查：下载装好后的一次
@@ -899,5 +1180,96 @@ public final class PoetryRepository {
                 AppExecutors.get().main(() -> callback.onError(e));
             }
         });
+    }
+
+    /**
+     * 确定只碰本地库的那种查询：直接放 io 池，不参与 {@link #run} 的
+     * 「可能访问网络」猜测。
+     *
+     * <p>猜测对 {@code fetch()} 那类「先远端、失败落本地」的调用是对的，但对纯本地查询
+     * 只会**误判**：后端活着时 {@code canUseRemote()} 为真，一段不带任何网络的 SQL 就被
+     * 塞进网络池，白占一个本该留给 HTTP 的线程。
+     */
+    private <T> void runLocal(@NonNull Callable<T> task, @NonNull Callback<T> callback) {
+        AppExecutors.get().io(() -> {
+            try {
+                T data = task.call();
+                publishReadiness(database.isReady(), database.filePresent());
+                AppExecutors.get().main(() -> {
+                    if (data != null) {
+                        callback.onData(data);
+                    } else {
+                        callback.onError(new IllegalStateException("empty result"));
+                    }
+                });
+            } catch (Exception e) {
+                AppExecutors.get().main(() -> callback.onError(e));
+            }
+        });
+    }
+
+    /**
+     * 宫格/榜单这类「一屏就是全部」的数据：本地先出图，远端成功再覆盖一次。
+     *
+     * <p>与 {@link #listFirstScreen} 同一套思路，差别在数据形状 —— 这里不翻页，
+     * 没有 {@link Page}，就一段列表。
+     *
+     * <p>空的本地结果同样**不投**（理由见 {@link #listing}）：宫格先清空再填满
+     * 看起来像是「加载失败又好了」。
+     */
+    private <T> void localFirst(@NonNull String what,
+                                @NonNull Callable<T> localCall,
+                                @NonNull Callable<T> remoteCall,
+                                @NonNull Callback<T> callback) {
+        AppExecutors.get().io(() -> {
+            final T local;
+            try {
+                database.ensureOpen();
+                local = localCall.call();
+                markSource(database.isReady() ? Source.LOCAL : Source.SEED);
+                publishReadiness(database.isReady(), database.filePresent());
+            } catch (Exception e) {
+                LogUtil.w("本地取数失败（" + what + "）", e);
+                AppExecutors.get().main(() -> callback.onError(e));
+                return;
+            }
+            final boolean localEmpty = isEmpty(local);
+            if (!localEmpty) {
+                AppExecutors.get().main(() -> callback.onData(local));
+            }
+            AppExecutors.get().net(() -> {
+                if (!canUseRemote()) {
+                    reportIfEmpty(localEmpty, local, callback);
+                    return;
+                }
+                try {
+                    T fresh = remoteCall.call();
+                    markSource(Source.REMOTE);
+                    AppExecutors.get().main(() -> callback.onData(fresh));
+                } catch (Exception e) {
+                    // 本地已经画过一屏，保留它；界面不该为一次刷新失败变样
+                    LogUtil.w("远端刷新失败（" + what + "），保留本地内容：" + e);
+                    reportIfEmpty(localEmpty, local, callback);
+                }
+            });
+        });
+    }
+
+    /**
+     * 兜底：本地本来就是空的、远端又没成，才把那个空结果投出去。
+     *
+     * <p>不这么做的话「本地空 + 远端挂」就一次回调都没有，界面上的加载指示器会一直转。
+     * 反过来，本地有内容时这个空结果绝不能投 —— 那会把已经画好的宫格清空。
+     */
+    private static <T> void reportIfEmpty(boolean localEmpty, @Nullable T local,
+                                          @NonNull Callback<T> callback) {
+        if (localEmpty && local != null) {
+            AppExecutors.get().main(() -> callback.onData(local));
+        }
+    }
+
+    private static boolean isEmpty(@Nullable Object data) {
+        return data == null || (data instanceof java.util.Collection
+                && ((java.util.Collection<?>) data).isEmpty());
     }
 }

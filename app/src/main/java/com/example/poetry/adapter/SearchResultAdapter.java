@@ -28,10 +28,9 @@ public class SearchResultAdapter extends RecyclerView.Adapter<SearchResultAdapte
         this.listener = listener;
     }
 
+    /** 替换整份列表。走 diff 而不是 {@code notifyDataSetChanged()}，规则见 {@link PoemDiff}。 */
     public void submit(@NonNull List<Poem> poems) {
-        data.clear();
-        data.addAll(poems);
-        notifyDataSetChanged();
+        PoemDiff.submit(this, data, poems);
     }
 
     /** 详情页要拿着整份搜索结果翻页，见 {@code DetailActivity#openInList} */

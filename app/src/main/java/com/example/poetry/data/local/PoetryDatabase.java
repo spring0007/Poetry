@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 本地诗库（{@code poetry.db}）只读封装。
@@ -126,10 +127,22 @@ public final class PoetryDatabase {
     private long installGeneration;
     private long openedGeneration = -1L;
 
-    /** 分类计数缓存（首屏只需算一次） */
-    private final Map<String, Long> kindCountCache = new HashMap<>();
-    private final Map<String, Long> dynastyCountCache = new HashMap<>();
-    private long totalCache = -1L;
+    /**
+     * 分类计数缓存（首屏只需算一次）。
+     *
+     * <p>用 {@link ConcurrentHashMap} 而不是 {@code HashMap}：读诗的池子有 2 个线程
+     * （见 {@code AppExecutors.io()}），分类页和发现页可能同时命中同一个缓存。
+     * 并发 {@code put} 一个普通 HashMap 会把它内部结构改坏 —— 症状是查询偶发地
+     * 死循环或返回错值，而不是抛异常，极难查。
+     */
+    private final Map<String, Long> kindCountCache = new ConcurrentHashMap<>();
+    private final Map<String, Long> dynastyCountCache = new ConcurrentHashMap<>();
+    /**
+     * 主题近似计数。{@link #approxThemeCount} 是一条 {@code body LIKE} 全表扫描，
+     * 12 个主题就是 12 次；诗库是静态的，算一次就够一辈子。
+     */
+    private final Map<String, Long> themeCountCache = new ConcurrentHashMap<>();
+    private volatile long totalCache = -1L;
 
     /**
      * Construction stays cheap on purpose: a background thread warms the repository up,
@@ -200,6 +213,7 @@ public final class PoetryDatabase {
         // 缓存描述的是旧文件里的数字，必须一起清掉——否则换了库之后「共 N 首」还是老的。
         kindCountCache.clear();
         dynastyCountCache.clear();
+        themeCountCache.clear();
         totalCache = -1L;
         return isReady();
     }
@@ -385,6 +399,12 @@ public final class PoetryDatabase {
      */
     @NonNull
     public List<Poem> featured(int limit) {
+        return featured(limit, 0);
+    }
+
+    /** @param offset 跳过的条数，热点榜翻页用（排序带 {@code p.id} 兜底，翻页不会错位） */
+    @NonNull
+    public List<Poem> featured(int limit, int offset) {
         List<Poem> list = new ArrayList<>();
         if (!isReady()) {
             return list;
@@ -392,7 +412,8 @@ public final class PoetryDatabase {
         Cursor c = null;
         try {
             c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
-                    + " ORDER BY p.score DESC, p.id ASC LIMIT " + Math.max(1, limit), null);
+                    + " ORDER BY p.score DESC, p.id ASC LIMIT " + Math.max(1, limit)
+                    + " OFFSET " + Math.max(0, offset), null);
             while (c.moveToNext()) {
                 list.add(readPoem(c));
             }
@@ -598,6 +619,17 @@ public final class PoetryDatabase {
 
     @NonNull
     public List<Poem> listByKind(@NonNull PoemKind kind, int limit) {
+        return listByKind(kind, limit, 0);
+    }
+
+    /**
+     * @param offset 跳过的条数。翻页靠 {@code LIMIT/OFFSET}，前提是排序**全序**：
+     *               只按 {@code p.score DESC} 排的话，同分的条目在两次查询里可能
+     *               换位置，翻页就会重复或漏掉。所以后面补了 {@code p.id ASC} 兜底
+     *               —— 它唯一，整条 ORDER BY 因此没有平局。
+     */
+    @NonNull
+    public List<Poem> listByKind(@NonNull PoemKind kind, int limit, int offset) {
         List<Poem> out = new ArrayList<>();
         if (!isReady()) {
             return out;
@@ -608,7 +640,8 @@ public final class PoetryDatabase {
         try {
             c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
                             + " WHERE s.name IN (" + placeholders + ")"
-                            + " ORDER BY p.score DESC LIMIT " + Math.max(1, limit),
+                            + " ORDER BY p.score DESC, p.id ASC LIMIT " + Math.max(1, limit)
+                            + " OFFSET " + Math.max(0, offset),
                     sources);
             while (c.moveToNext()) {
                 out.add(readPoem(c));
@@ -623,6 +656,11 @@ public final class PoetryDatabase {
 
     @NonNull
     public List<Poem> listByDynasty(@NonNull String dynastyCode, int limit) {
+        return listByDynasty(dynastyCode, limit, 0);
+    }
+
+    @NonNull
+    public List<Poem> listByDynasty(@NonNull String dynastyCode, int limit, int offset) {
         List<Poem> out = new ArrayList<>();
         if (!isReady()) {
             return out;
@@ -630,7 +668,8 @@ public final class PoetryDatabase {
         Cursor c = null;
         try {
             c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
-                            + " WHERE a.dynasty = ? ORDER BY p.score DESC LIMIT " + Math.max(1, limit),
+                            + " WHERE a.dynasty = ? ORDER BY p.score DESC, p.id ASC LIMIT "
+                            + Math.max(1, limit) + " OFFSET " + Math.max(0, offset),
                     new String[]{dynastyCode});
             while (c.moveToNext()) {
                 out.add(readPoem(c));
@@ -645,6 +684,11 @@ public final class PoetryDatabase {
 
     @NonNull
     public List<Poem> listByAuthor(long authorId, int limit) {
+        return listByAuthor(authorId, limit, 0);
+    }
+
+    @NonNull
+    public List<Poem> listByAuthor(long authorId, int limit, int offset) {
         List<Poem> out = new ArrayList<>();
         if (!isReady()) {
             return out;
@@ -652,7 +696,8 @@ public final class PoetryDatabase {
         Cursor c = null;
         try {
             c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
-                            + " WHERE p.author_id = ? ORDER BY p.score DESC LIMIT " + Math.max(1, limit),
+                            + " WHERE p.author_id = ? ORDER BY p.score DESC, p.id ASC LIMIT "
+                            + Math.max(1, limit) + " OFFSET " + Math.max(0, offset),
                     new String[]{String.valueOf(authorId)});
             while (c.moveToNext()) {
                 out.add(readPoem(c));
@@ -791,6 +836,10 @@ public final class PoetryDatabase {
         if (!isReady()) {
             return 0;
         }
+        Long cached = themeCountCache.get(keyword);
+        if (cached != null) {
+            return cached;
+        }
         long count = 0;
         Cursor c = null;
         try {
@@ -805,6 +854,7 @@ public final class PoetryDatabase {
         } finally {
             closeQuietly(c);
         }
+        themeCountCache.put(keyword, count);
         return count;
     }
 

@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.poetry.data.model.Dynasty;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.databinding.ItemPoemRowBinding;
+import com.example.poetry.util.PoemLength;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,10 +72,9 @@ public class PoemRowAdapter extends RecyclerView.Adapter<PoemRowAdapter.Holder> 
         notifyDataSetChanged();
     }
 
+    /** 替换整份列表。走 diff 而不是 {@code notifyDataSetChanged()}，规则见 {@link PoemDiff}。 */
     public void submit(@NonNull List<Poem> poems) {
-        data.clear();
-        data.addAll(poems);
-        notifyDataSetChanged();
+        PoemDiff.submit(this, data, poems);
     }
 
     @NonNull
@@ -110,17 +110,23 @@ public class PoemRowAdapter extends RecyclerView.Adapter<PoemRowAdapter.Holder> 
         }
 
         void bind(@NonNull Poem poem) {
-            int color = ContextCompat.getColor(itemView.getContext(), poem.getKind().getColorRes());
-            int light = ContextCompat.getColor(itemView.getContext(), poem.getKind().getLightColorRes());
+            int color = KindColors.solid(itemView.getContext(), poem.getKind());
+            int light = KindColors.light(itemView.getContext(), poem.getKind());
 
             binding.rowBar.setBackgroundColor(color);
             binding.rowTitle.setText(poem.getTitle());
             binding.rowBadge.setText(poem.getKind().getLabel());
             ViewCompat.setBackgroundTintList(binding.rowBadge, ColorStateList.valueOf(light));
             binding.rowBadge.setTextColor(color);
-            String meta = metaProvider != null ? metaProvider.metaOf(poem)
-                    : poem.getAuthorLabel() + " · "
-                    + Dynasty.labelOf(poem.getDynasty()) + " · " + poem.getLineCount() + " 句";
+            String meta = metaProvider != null ? metaProvider.metaOf(poem) : null;
+            if (meta == null) {
+                // 句数/字数交给 PoemLength 判断：远端来的条目没有正文，数不出句数
+                String length = PoemLength.label(itemView.getContext(), poem);
+                meta = poem.getAuthorLabel() + " · " + Dynasty.labelOf(poem.getDynasty());
+                if (!length.isEmpty()) {
+                    meta += " · " + length;
+                }
+            }
             binding.rowMeta.setText(meta);
 
             binding.rowRemove.setVisibility(deleteMode ? View.VISIBLE : View.GONE);

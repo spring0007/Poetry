@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 import com.example.poetry.data.model.Author;
 import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Dynasty;
+import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.Voice;
 
@@ -89,21 +90,25 @@ public final class HttpPoetryApi implements PoetryApi {
 
     @NonNull
     @Override
-    public List<Poem> search(@NonNull String keyword, int page, int pageSize) throws ApiException {
+    public Page<Poem> search(@NonNull String keyword, int page, int pageSize) throws ApiException {
+        int p = Math.max(1, page);
+        int s = clampSize(pageSize);
         Object data = client.get(ApiConfig.API_SEARCH, ApiClient.query(
                 "q", keyword,
-                "page", String.valueOf(Math.max(1, page)),
-                "size", String.valueOf(clampSize(pageSize))));
-        return JsonMapper.toPoemsFromPage(data);
+                "page", String.valueOf(p),
+                "size", String.valueOf(s)));
+        return JsonMapper.toPageOfPoems(data, p, s);
     }
 
     @NonNull
     @Override
-    public List<Poem> featured(int page, int pageSize) throws ApiException {
+    public Page<Poem> featured(int page, int pageSize) throws ApiException {
+        int p = Math.max(1, page);
+        int s = clampSize(pageSize);
         Object data = client.get(ApiConfig.API_FEATURED, ApiClient.query(
-                "page", String.valueOf(Math.max(1, page)),
-                "size", String.valueOf(clampSize(pageSize))));
-        return JsonMapper.toPoemsFromPage(data);
+                "page", String.valueOf(p),
+                "size", String.valueOf(s)));
+        return JsonMapper.toPageOfPoems(data, p, s);
     }
 
     @Nullable
@@ -157,24 +162,28 @@ public final class HttpPoetryApi implements PoetryApi {
 
     @NonNull
     @Override
-    public List<Poem> listByKind(@NonNull String kindCode, int page, int pageSize)
+    public Page<Poem> listByKind(@NonNull String kindCode, int page, int pageSize)
             throws ApiException {
         String path = ApiConfig.path(ApiConfig.API_LIST_KIND, "code", kindCode);
+        int p = Math.max(1, page);
+        int s = clampSize(pageSize);
         Object data = client.get(path, ApiClient.query(
-                "page", String.valueOf(Math.max(1, page)),
-                "size", String.valueOf(clampSize(pageSize))));
-        return JsonMapper.toPoemsFromPage(data);
+                "page", String.valueOf(p),
+                "size", String.valueOf(s)));
+        return JsonMapper.toPageOfPoems(data, p, s);
     }
 
     @NonNull
     @Override
-    public List<Poem> listByDynasty(@NonNull String dynastyCode, int page, int pageSize)
+    public Page<Poem> listByDynasty(@NonNull String dynastyCode, int page, int pageSize)
             throws ApiException {
         String path = ApiConfig.path(ApiConfig.API_LIST_DYNASTY, "code", dynastyCode);
+        int p = Math.max(1, page);
+        int s = clampSize(pageSize);
         Object data = client.get(path, ApiClient.query(
-                "page", String.valueOf(Math.max(1, page)),
-                "size", String.valueOf(clampSize(pageSize))));
-        return JsonMapper.toPoemsFromPage(data);
+                "page", String.valueOf(p),
+                "size", String.valueOf(s)));
+        return JsonMapper.toPageOfPoems(data, p, s);
     }
 
     @NonNull
@@ -197,13 +206,16 @@ public final class HttpPoetryApi implements PoetryApi {
 
     @NonNull
     @Override
-    public List<Poem> authorPoems(@NonNull String authorRef, int limit) throws ApiException {
+    public Page<Poem> authorPoems(@NonNull String authorRef, int page, int pageSize)
+            throws ApiException {
         String path = ApiConfig.path(ApiConfig.API_AUTHOR_POEMS, "ref", authorRef);
+        int p = Math.max(1, page);
+        int s = clampSize(pageSize);
         Object data = client.get(path, ApiClient.query(
-                "page", "1",
-                "size", String.valueOf(clampSize(limit))));
+                "page", String.valueOf(p),
+                "size", String.valueOf(s)));
         // 这个接口的形状是 {author, items, page, size}，不是标准 Paged（没有 total）
-        return JsonMapper.toPoems(ApiClient.asObject(data).optJSONArray("items"));
+        return JsonMapper.toPageOfPoems(data, p, s);
     }
 
     @NonNull
@@ -243,7 +255,7 @@ public final class HttpPoetryApi implements PoetryApi {
      *
      * <p>与 {@code /v1/search} 不同，这个端点把结果**直接放在 {@code data} 顶层的数组里**，
      * 没有 {@code {total,page,size,items}} 那层壳，所以这里走 {@code asArray} 而不是
-     * {@code toPoemsFromPage} —— 用错了解析器只会静默拿到空列表。
+     * {@code toPageOfPoems} —— 用错了解析器只会静默拿到空列表。
      */
     @NonNull
     @Override

@@ -19,6 +19,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.poetry.adapter.SearchResultAdapter;
@@ -60,6 +62,16 @@ public class MainActivity extends AppCompatActivity {
     /** 面板里这批结果对应的关键词，点「查看全部」时带过去 */
     private String lastKeyword;
 
+    // 四个页签的 Fragment tag。用 tag 而不是 id 索引，是因为 FragmentManager 恢复
+    // 之后只能按 tag 找回那一个实例（见 switchFragment）。
+    private static final String TAB_DISCOVER = "tab_discover";
+    private static final String TAB_CATEGORY = "tab_category";
+    private static final String TAB_BOOKSHELF = "tab_bookshelf";
+    private static final String TAB_MINE = "tab_mine";
+    private static final String[] TAB_TAGS = {
+            TAB_DISCOVER, TAB_CATEGORY, TAB_BOOKSHELF, TAB_MINE,
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Skin.apply(this);
@@ -97,23 +109,79 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 根据底部导航项切换对应的 Fragment
+     * 根据底部导航项切换对应的 Fragment：**留着旧的，只切可见性**。
+     *
+     * <p>以前是 {@code replace()}，每点一次底栏就把上一个碎片销毁重来 —— 四个页面
+     * 各自那一屏查询（体裁宫格、朝代宫格、精选、书架统计）也跟着重跑一遍，
+     * 来回切两次就白烧两轮。改成 show/hide 后每个页面只在首次进入时查一次。
+     *
+     * <p>也因此这里要能**重复调用且幂等**：转屏或进程回收后 FragmentManager 会把四个
+     * 碎片一起还回来，可见性得有人重新对一遍（见 {@link #onResume()}
+     * —— 视图状态在 onCreate 之后才恢复，那会儿底栏还没选中正确的项）。
      */
     private void switchFragment(int itemId) {
-        Fragment fragment;
-        if (itemId == R.id.nav_category) {
-            fragment = new CategoryFragment();
-        } else if (itemId == R.id.nav_bookshelf) {
-            fragment = new BookshelfFragment();
-        } else if (itemId == R.id.nav_mine) {
-            fragment = new MineFragment();
-        } else {
-            fragment = new DiscoverFragment();
+        String tag = tagOf(itemId);
+        FragmentManager fm = getSupportFragmentManager();
+        FragmentTransaction tx = fm.beginTransaction();
+        boolean changed = hideOthers(tx, tag);
+        if (fm.findFragmentByTag(tag) == null) {
+            tx.add(R.id.fragmentContainer, createFragment(itemId), tag);
+            changed = true;
         }
-        getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragmentContainer, fragment)
-                .commit();
+        if (changed) {
+            tx.commit();
+        }
+    }
+
+    /**
+     * 把除 {@code tag} 之外的页签都藏起来、目标那个显出来，返回是否真的动了手。
+     *
+     * <p>**不新增碎片**：刚提交但还没执行的那次 {@code add} 是找不到的（commit 要等
+     * 消息循环下一轮才跑），这里再补一个就会叠出两个同 tag 的碎片。
+     */
+    private boolean hideOthers(@NonNull FragmentTransaction tx, @NonNull String tag) {
+        FragmentManager fm = getSupportFragmentManager();
+        boolean changed = false;
+        for (String other : TAB_TAGS) {
+            Fragment existing = fm.findFragmentByTag(other);
+            boolean shouldShow = other.equals(tag);
+            // 「现在藏着的」和「该不该显示」相反时才是真需要动一次
+            if (existing != null && existing.isHidden() == shouldShow) {
+                if (shouldShow) {
+                    tx.show(existing);
+                } else {
+                    tx.hide(existing);
+                }
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static String tagOf(int itemId) {
+        if (itemId == R.id.nav_category) {
+            return TAB_CATEGORY;
+        }
+        if (itemId == R.id.nav_bookshelf) {
+            return TAB_BOOKSHELF;
+        }
+        if (itemId == R.id.nav_mine) {
+            return TAB_MINE;
+        }
+        return TAB_DISCOVER;
+    }
+
+    private static Fragment createFragment(int itemId) {
+        if (itemId == R.id.nav_category) {
+            return new CategoryFragment();
+        }
+        if (itemId == R.id.nav_bookshelf) {
+            return new BookshelfFragment();
+        }
+        if (itemId == R.id.nav_mine) {
+            return new MineFragment();
+        }
+        return new DiscoverFragment();
     }
 
     @Override
@@ -123,6 +191,13 @@ public class MainActivity extends AppCompatActivity {
         if (store != null && appliedSkin != null
                 && !appliedSkin.equals(store.getSkinId())) {
             recreate();
+            return;
+        }
+        // 重建后底栏的选中项此时才恢复完，照着它把可见性再对一遍。
+        // 一切正常时这里是空转（没有任何 Fragment 需要 show/hide）。
+        FragmentTransaction tx = getSupportFragmentManager().beginTransaction();
+        if (hideOthers(tx, tagOf(binding.bottomNav.getSelectedItemId()))) {
+            tx.commit();
         }
     }
 

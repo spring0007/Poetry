@@ -116,6 +116,8 @@
     <string name="tab_creative_background">创作背景</string>
     <string name="tab_introduction">简介</string>
     <string name="poem_line_count">%1$d 句</string>
+    <!-- 句数是从正文数出来的，而远端列表接口不带正文；那一页改用后端给的 nChar 显示字数 -->
+    <string name="poem_char_count">%1$d 字</string>
     <string name="player_voice">音色 · %1$s</string>
     <string name="voice_sheet_title">选择朗读音色</string>
     <string name="voice_sheet_sub">共 %1$d 种声音 · 点「试听」可预览</string>
@@ -135,12 +137,17 @@
 
     <!-- 数据层 / 后台接口 -->
     <string name="data_loading">正在载入…</string>
+    <!-- 长列表分页的底部两种状态 -->
+    <string name="list_loading_more">正在加载更多…</string>
+    <string name="list_end">已经到底了</string>
     <string name="data_source_label">数据来源 · %1$s</string>
     <string name="data_db_hint">把 poetry.db 放到\n%1$s\n即可载入全量诗库</string>
     <string name="detail_no_content">本篇暂无内容</string>
     <string name="detail_strain">平仄</string>
     <string name="detail_no_notes">本篇暂无注释</string>
     <string name="detail_meta">%1$d 句 · %2$d 字</string>
+    <!-- 正文尚未补回来（只有 brief）时的降级文案：句数数不出来，只报字数 -->
+    <string name="detail_meta_chars">%1$d 字</string>
     <string name="category_all">全部</string>
     <string name="voice_default_name">默认音色</string>
     <string name="voice_sheet_empty">语音包没能加载，暂时没有可选的音色</string>
@@ -418,7 +425,9 @@
     <string name="hot_mark_value">热 %1$d</string>
     <string name="hot_list_title">热点诗词榜</string>
     <string name="hot_list_sub">按热度排序</string>
-    <string name="hot_value">热度 %1$d · %2$d 句</string>
+    <!-- 第二格是篇幅，可能是「N 句」也可能是「N 字」，见 util/PoemLength -->
+    <string name="hot_value">热度 %1$d · %2$s</string>
+    <string name="hot_value_only">热度 %1$d</string>
     <string name="hot_rank_desc">第 %1$d 名 %2$s</string>
 
     <!-- ================= 作者详情 ================= -->

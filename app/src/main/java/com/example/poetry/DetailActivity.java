@@ -272,8 +272,12 @@ public class DetailActivity extends AppCompatActivity {
         ViewCompat_setBadgeTint();
         binding.poemBadge.setTextColor(ContextCompat.getColor(this, poem.getKind().getColorRes()));
         binding.poemAuthor.setText(poem.getAuthorLabel());
-        binding.poemMeta.setText(getString(R.string.detail_meta,
-                poem.getLineCount(), poem.getNChar()));
+        // 正文还没补回来时（列表点进来只带 brief）句数必然是 0，这时只报字数，
+        // 别在用户眼皮底下写「0 句 · 120 字」—— 详情回来后 bindHeader 会再走一遍
+        int lines = poem.getLineCount();
+        binding.poemMeta.setText(lines > 0
+                ? getString(R.string.detail_meta, lines, poem.getNChar())
+                : getString(R.string.detail_meta_chars, poem.getNChar()));
 
         updateFavoriteIcon();
 

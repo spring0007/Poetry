@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.example.poetry.data.model.Author;
 import com.example.poetry.data.model.Category;
+import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
 import com.example.poetry.data.model.Voice;
@@ -60,10 +61,22 @@ final class JsonMapper {
         return out;
     }
 
-    /** 从分页负载 {@code {total,page,size,items}} 里取出作品列表 */
+    /**
+     * 从分页负载 {@code {total,page,size,items}} 里取出作品，**连 {@code total} 一起**
+     * （列表分页要用它判断「还有没有下一页」）。
+     *
+     * <p>没给 {@code total} 的接口（如 {@code /v1/authors/:ref/poems} 只回
+     * {@code {author,items,page,size}}）落到 {@link Page#TOTAL_UNKNOWN}，
+     * 由 {@link Page#hasMore()} 退化成「本页是否装满」。
+     *
+     * <p>{@code page}/{@code size} 以请求参数为准，不采信响应体：这两个值调用方自己最清楚，
+     * 而后端某些接口回的是默认值，拿来会和实际请求的页号对不上。
+     */
     @NonNull
-    static List<Poem> toPoemsFromPage(@Nullable Object data) {
-        return toPoems(ApiClient.asObject(data).optJSONArray("items"));
+    static Page<Poem> toPageOfPoems(@Nullable Object data, int page, int size) {
+        JSONObject o = ApiClient.asObject(data);
+        List<Poem> items = toPoems(o.optJSONArray("items"));
+        return new Page<>(items, o.optLong("total", Page.TOTAL_UNKNOWN), page, size);
     }
 
     @NonNull
@@ -82,6 +95,9 @@ final class JsonMapper {
         poem.setScore(o.optInt("score", 0));
         poem.setNChar(o.optInt("nChar", 0));
         poem.setNotes(o.optString("notes", ""));
+        // 列表接口没有 body，但带 excerpt（服务端截好的前两行）——卡片就靠它显示摘要。
+        // 别把它并进 body：详情页用 body.isEmpty() 判断要不要补一次详情请求。
+        poem.setExcerptFromServer(o.optString("excerpt", ""));
 
         // 以下字段只有详情接口才有；列表接口扫出来是空串，属预期
         poem.setBody(o.optString("body", ""));

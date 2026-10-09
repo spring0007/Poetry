@@ -49,6 +49,17 @@ public class CategoryFragment extends Fragment {
      */
     private DbStatusListener readyWatcher;
 
+    // 四个板块「已经交过货」的位掩码（成功或失败都算，见 settled）。
+    private static final int SECTION_TYPES = 1;
+    private static final int SECTION_DYNASTIES = 1 << 1;
+    private static final int SECTION_THEMES = 1 << 2;
+    private static final int SECTION_AUTHORS = 1 << 3;
+    private static final int SECTION_ALL = SECTION_TYPES | SECTION_DYNASTIES
+            | SECTION_THEMES | SECTION_AUTHORS;
+
+    /** 本轮 loadAll 里已经交过货的板块；四块齐了才收掉加载圈 */
+    private int settled;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -84,10 +95,26 @@ public class CategoryFragment extends Fragment {
 
     /** 一次取回这一页四块数据。库换了之后整页重取。 */
     private void loadAll() {
+        settled = 0;
+        binding.categoryLoading.setVisibility(View.VISIBLE);
         loadTypes();
         loadDynasties();
         loadThemes();
         loadAuthors();
+    }
+
+    /**
+     * 某个板块交过货了（拿到数据或彻底失败，都算）。四块齐了才收掉加载圈
+     * —— 半屏宫格配着一个转不停的圈，更容易被当成卡死。
+     *
+     * <p>按板块**取或**而不是计数：{@code localFirst} 那一层本地先给一次、
+     * 远端回来还会再给一次（见 {@code PoetryRepository.localFirst}），数次数会提前收圈。
+     */
+    private void settle(int section) {
+        settled |= section;
+        if (settled == SECTION_ALL && binding != null) {
+            binding.categoryLoading.setVisibility(View.GONE);
+        }
     }
 
     // ---------------------------------------------------------------- 按体裁
@@ -111,6 +138,7 @@ public class CategoryFragment extends Fragment {
                 if (binding == null) {
                     return;
                 }
+                settle(SECTION_TYPES);
                 typeAdapter.submit(categories);
                 long total = 0;
                 for (Category category : categories) {
@@ -122,6 +150,7 @@ public class CategoryFragment extends Fragment {
             @Override
             public void onError(@Nullable Throwable error) {
                 // 保留空列表即可
+                settle(SECTION_TYPES);
             }
         });
     }
@@ -145,6 +174,7 @@ public class CategoryFragment extends Fragment {
                 if (binding == null) {
                     return;
                 }
+                settle(SECTION_DYNASTIES);
                 dynastyAdapter.submit(categories);
                 binding.dynastyHeader.sectionMeta.setText(categories.size() + " 个");
             }
@@ -152,6 +182,7 @@ public class CategoryFragment extends Fragment {
             @Override
             public void onError(@Nullable Throwable error) {
                 // ignore
+                settle(SECTION_DYNASTIES);
             }
         });
     }
@@ -175,6 +206,7 @@ public class CategoryFragment extends Fragment {
                 if (binding == null) {
                     return;
                 }
+                settle(SECTION_THEMES);
                 for (Category category : categories) {
                     Chip chip = Chips.create(requireContext(),
                             category.getName() + " · " + category.getCount(), true);
@@ -188,6 +220,7 @@ public class CategoryFragment extends Fragment {
             @Override
             public void onError(@Nullable Throwable error) {
                 // ignore
+                settle(SECTION_THEMES);
             }
         });
     }
@@ -213,12 +246,14 @@ public class CategoryFragment extends Fragment {
                 if (binding == null) {
                     return;
                 }
+                settle(SECTION_AUTHORS);
                 authorAdapter.submit(authors);
             }
 
             @Override
             public void onError(@Nullable Throwable error) {
                 // ignore
+                settle(SECTION_AUTHORS);
             }
         });
     }
