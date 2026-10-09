@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 朗读的唯一入口（UI 只认识这个类）。
  * <p>
- * 底下是 {@link EngineRouter}（离线 {@link SherpaTts} + 腾讯云 {@link QCloudTts}）：sherpa-onnx + 随 APK 分发的中文 VITS 语音包，
+ * 底下是 {@link EngineRouter}（目前只有内置离线引擎 {@link SherpaTts}）：sherpa-onnx + 随 APK 分发的中文 VITS 语音包，
  * 整条合成链路跑在本机，装上就能读，不需要联网、也不依赖任何第三方 App。
  * 语音包缺失或 native 库加载失败时 {@link #isReady()} 为 false，
  * 界面应当给出引导而不是硬读。

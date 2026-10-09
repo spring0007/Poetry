@@ -436,6 +436,8 @@ public class MineFragment extends Fragment {
             setupProfile();
             refreshStats();
             setupMore();
+            // 切网络、熔断冷却结束都会改「服务端」那一行
+            renderApiStatus();
         }
     }
 
@@ -449,6 +451,32 @@ public class MineFragment extends Fragment {
         binding.rowDataSource.rowTitle.setText(R.string.mine_data_source);
         binding.rowDataSource.getRoot().setOnClickListener(v -> onDataRowClick());
         binding.dbHint.setText(getString(R.string.data_db_hint, repository.recommendDbDir()));
+
+        // 服务端行只是说明：点它没有「下一步」可做，所以去掉点击与箭头，
+        // 否则它会长得跟「诗库状态」一样，让人以为点进去还有东西。
+        binding.rowApi.getRoot().setClickable(false);
+        binding.rowApi.getRoot().setFocusable(false);
+        renderApiStatus();
+    }
+
+    /**
+     * 渲染「服务端」行。
+     *
+     * <p>与「诗库状态」分成两行是因为它们回答不同的问题：内容这次是从哪儿来的
+     * （可能回退了本地），以及后端链路本身通不通（熔断、未配地址、无网络）。
+     * 合成一行会让「正在用本地库」和「后端挂了」看起来像同一件事。
+     *
+     * <p>只在 {@code bindData} 与 {@code onResume} 里刷新，不订阅任何事件：
+     * 链路状态不是逐秒在变的，为它建一套推送得不偿失。
+     */
+    private void renderApiStatus() {
+        if (binding == null) {
+            return;
+        }
+        binding.rowApi.rowTitle.setText(R.string.mine_api_status);
+        binding.rowApi.rowSub.setText(repository.apiStatusLabel());
+        binding.rowApi.rowValue.setText("");
+        binding.rowApi.rowChevron.setVisibility(View.GONE);
     }
 
     /**
@@ -543,13 +571,15 @@ public class MineFragment extends Fragment {
             case INSTALLED:
             default:
                 // INSTALLED 只是一次性信号，显示的稳态和「库已就绪」是同一个。
-                value = getString(status.localReady
-                        ? R.string.mine_data_ready : R.string.mine_data_seed);
-                sub = getString(R.string.data_source_label,
-                        status.localReady ? "本地诗库 poetry.db" : "内置示例数据");
-                if (status.localReady) {
-                    sub = sub + " · " + getString(R.string.mine_data_check);
-                }
+                //
+                // 本机没装库时的取值刻意不是写死的「内置示例数据」：这时候内容
+                // 其实可能来自服务端（离线策略是「远端 → 本地库 → 内置示例」），
+                // 写死会在有网时明明白白说错话。
+                value = status.localReady
+                        ? getString(R.string.mine_data_ready)
+                        : repository.sourceLabel();
+                sub = getString(status.localReady
+                        ? R.string.mine_data_ready_sub : R.string.mine_data_offline_sub);
                 break;
         }
 

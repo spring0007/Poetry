@@ -227,7 +227,7 @@ public class BookshelfFragment extends Fragment {
                 .setMessage(getString(R.string.shelf_remove_confirm, poem.getTitle()))
                 .setNegativeButton(R.string.action_cancel, null)
                 .setPositiveButton(R.string.action_confirm, (dialog, which) -> {
-                    repository.removeFavorite(poem.getId());
+                    repository.removeFavorite(poem);
                     Toast.makeText(requireContext(), R.string.shelf_removed, Toast.LENGTH_SHORT).show();
                     refresh();
                     // 删空了就没必要继续停在编辑态
@@ -388,7 +388,7 @@ public class BookshelfFragment extends Fragment {
         if (!empty) {
             Poem last = list.get(0);
             binding.resumeTitle.setText(getString(R.string.shelf_resume, last.getTitle()));
-            int percent = store.getProgress(last.getId());
+            int percent = store.getProgress(last);
             if (percent <= 0) {
                 percent = 35;
             }

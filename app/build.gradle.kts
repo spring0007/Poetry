@@ -4,8 +4,11 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-// 腾讯云语音合成的密钥从 local.properties 读，不进版本库（见 .gitignore）。
-// 没填时 BuildConfig 里是空串，引擎按「未配置」处理，离线朗读照常。
+// local.properties 用来注入「后端地址」这类**非机密**的构建期参数。
+//
+// 这里刻意不再注入任何云服务密钥：BuildConfig 的字符串常量是明文躺在 classes.dex 里的，
+// 反编译就能读出来（旧包实测能直接搜到腾讯云主账号的 SecretId / SecretKey）。
+// 需要凭证的能力一律由后端代理，App 侧不持有。
 val localProperties = Properties().apply {
     val propsFile = rootProject.file("local.properties")
     if (propsFile.exists()) {
@@ -26,13 +29,18 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // 腾讯云密钥：空串 = 未配置，QCloudTts 自动降级为不可用
-        buildConfigField("String", "QCLOUD_APP_ID",
-            "\"" + (localProperties.getProperty("QCLOUD_APP_ID", "") ?: "") + "\"")
-        buildConfigField("String", "QCLOUD_SECRET_ID",
-            "\"" + (localProperties.getProperty("QCLOUD_SECRET_ID", "") ?: "") + "\"")
-        buildConfigField("String", "QCLOUD_SECRET_KEY",
-            "\"" + (localProperties.getProperty("QCLOUD_SECRET_KEY", "") ?: "") + "\"")
+        // ---- 后端接口 ----
+        // 默认指向 10.0.2.2:8000，也就是「模拟器里的宿主机」。真机调试时二选一：
+        //   1) adb reverse tcp:8000 tcp:8000，然后把这里的地址改成 http://localhost:8000/
+        //   2) 直接填局域网地址 http://192.168.x.x:8000/（需在 network_security_config 放行明文）
+        // 两者都是**开发期**地址；生产环境填 https://<域名>/ 即可，无需改代码。
+        //
+        // API_ENABLED 是总闸：关掉它就彻底退回「完全离线」，一条网络请求都不发，
+        // 用来快速判断某个问题是出在网络链路还是本地逻辑。
+        buildConfigField("String", "API_BASE_URL",
+            "\"" + (localProperties.getProperty("API_BASE_URL", "http://10.0.2.2:8000/") ?: "") + "\"")
+        buildConfigField("boolean", "API_ENABLED",
+            (localProperties.getProperty("API_ENABLED", "true") ?: "true"))
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -76,7 +84,6 @@ dependencies {
     // 两个都按 .gitignore 不入库，用 tools/fetch-tts-deps.sh 取。
     implementation(files("libs/sherpa-onnx-1.13.8.aar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
-    implementation(files("libs/libqcloudtts-release.aar"))
 
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

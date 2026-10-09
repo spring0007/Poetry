@@ -12,7 +12,7 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+local.properties*
 
 # 内置离线语音的依赖（sherpa-onnx AAR + 小雅模型），体积大且可重新下载。
 # 新克隆的仓库要先跑 tools/fetch-tts-deps.sh，否则 :app:assembleDebug 编译不过。

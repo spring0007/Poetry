@@ -113,6 +113,8 @@
     <string name="tab_translation">译文</string>
     <string name="tab_annotation">注释</string>
     <string name="tab_appreciation">赏析</string>
+    <string name="tab_creative_background">创作背景</string>
+    <string name="tab_introduction">简介</string>
     <string name="poem_line_count">%1$d 句</string>
     <string name="player_voice">音色 · %1$s</string>
     <string name="voice_sheet_title">选择朗读音色</string>
@@ -135,7 +137,7 @@
     <string name="data_loading">正在载入…</string>
     <string name="data_source_label">数据来源 · %1$s</string>
     <string name="data_db_hint">把 poetry.db 放到\n%1$s\n即可载入全量诗库</string>
-    <string name="remote_pending">后台接口接入后，这里会显示完整内容</string>
+    <string name="detail_no_content">本篇暂无内容</string>
     <string name="detail_strain">平仄</string>
     <string name="detail_no_notes">本篇暂无注释</string>
     <string name="detail_meta">%1$d 句 · %2$d 字</string>
@@ -229,7 +231,6 @@
     <string name="voice_qcloud_zhiju_desc">大模型朗读 · 声线舒展</string>
 
     <!-- 音色列表：云端音色标签与会员锁定态 -->
-    <string name="voice_tag_online">云端</string>
     <string name="voice_tag_member">会员</string>
     <string name="voice_locked_action">解锁</string>
     <string name="voice_member_required">开通会员后可使用腾讯云音色</string>
@@ -241,9 +242,6 @@
     <string name="voice_cloud_unavailable">「%1$s」暂时不可用；选择已保留，恢复后自动切回。</string>
 
     <!-- 语音设置：云端引擎状态与会员开关 -->
-    <string name="tts_engine_online_ready">腾讯云语音就绪 · %1$d 个音色</string>
-    <string name="tts_engine_online_unauth">腾讯云音色未配置密钥（local.properties）</string>
-    <string name="tts_engine_online_need_member">腾讯云音色需开通会员</string>
     <string name="tts_cloud_no_voice">腾讯云音色暂不可用</string>
     <string name="tts_cloud_synth_failed">合成请求失败：%1$s</string>
     <string name="tts_cloud_synth_error">合成请求异常：%1$s</string>
@@ -255,7 +253,6 @@
     <string name="tts_cloud_pkg_missing">云端音色尚未开通资源包，请在腾讯云控制台开通</string>
     <string name="tts_cloud_auth_failed">云端音色鉴权失败，请检查密钥与授权</string>
     <string name="tts_cloud_fallback">云端音色暂时不可用，已改用内置音色</string>
-    <string name="tts_engine_join">%1$s · %2$s</string>
     <string name="tts_member_label">会员音色权限</string>
     <string name="tts_member_on">体验中 · 全部音色可用</string>
     <string name="tts_member_off">未开通 · 仅离线音色</string>
@@ -270,8 +267,10 @@
     <string name="tts_play_failed">朗读失败，请重试</string>
     <string name="mine_data_group">数据</string>
     <string name="mine_data_source">诗库状态</string>
+    <string name="mine_api_status">服务端</string>
+    <string name="mine_data_ready_sub">本机诗库已就位 · 检查更新</string>
+    <string name="mine_data_offline_sub">点按可下载整包诗库，之后完全离线可读</string>
     <string name="mine_data_ready">已载入本地诗库</string>
-    <string name="mine_data_seed">内置示例数据</string>
     <string name="mine_data_update">可下载诗库</string>
     <string name="mine_data_wait_wifi">等待 Wi-Fi</string>
     <string name="mine_data_downloading">下载中 %1$d%%</string>
@@ -279,7 +278,6 @@
     <string name="mine_data_installing">正在安装</string>
     <string name="mine_data_failed">下载失败</string>
     <string name="mine_data_cancel">取消</string>
-    <string name="mine_data_check">检查更新</string>
     <string name="mine_data_checking_sub">正在检查诗库…</string>
     <string name="mine_data_verifying_sub">正在校验…</string>
     <string name="mine_data_installing_sub">正在替换诗库…</string>
@@ -326,12 +324,13 @@
     <string name="about_slogan">一诗一词，皆可聆听</string>
     <string name="about_version">版本 %1$s</string>
     <string name="about_group_library">诗库</string>
-    <string name="about_library_note">诗库首次使用时从服务器下载一次，之后完全离线可读。除了这一次诗库下载，App 不发起任何网络请求，也不上传任何数据。</string>
+    <string name="about_api_label">服务端 · %1$s</string>
+    <string name="about_library_note">联网时诗词内容优先从服务端获取，无网络或服务端不可用时自动回退到本机诗库；本机诗库可从服务器整包下载一次，之后完全离线可读。</string>
     <string name="about_group_voice">语音合成</string>
-    <string name="about_voice_engine">朗读由随 App 内置的离线语音合成完成：语音模型直接装在应用里，这台手机不需要额外安装任何东西，也不依赖任何第三方朗读 App。装好即可朗读，并可在 15 种发音人之间切换。合成全程在手机上完成，不上传任何数据。</string>
+    <string name="about_voice_engine">朗读由随 App 内置的离线语音合成完成：语音模型直接装在应用里，这台手机不需要额外安装任何东西，朗读也不必联网。</string>
     <string name="about_voice_state">语音引擎：%1$s</string>
     <string name="about_group_privacy">隐私</string>
-    <string name="about_privacy_body">收藏、朗读历史、打卡与偏好都只存在这台手机上，App 没有账号、也不上传任何数据；朗读过程完全离线。</string>
+    <string name="about_privacy_body">收藏、朗读历史、打卡与偏好默认只保存在这台手机上。未登录时不上传任何数据；手机号登录后，只会把收藏与阅读记录同步到服务端，便于换设备后找回。</string>
     <string name="about_check_update">检查更新</string>
     <string name="about_check_update_done">已是最新版本</string>
     <string name="about_check_update_found">发现新诗库，可在「我的」页下载</string>
@@ -437,11 +436,26 @@
     <string name="login_wechat">微信登录</string>
     <string name="login_mock">模拟登录（未配置微信）</string>
     <string name="login_mock_note">模拟登录不连接任何服务器，仅在本机生成临时身份</string>
-    <string name="login_agreement">登录即代表同意《用户协议》与《隐私政策》；全部数据仅保存在本机</string>
+    <string name="login_agreement">登录即代表同意《用户协议》与《隐私政策》</string>
     <string name="login_wechat_missing">未检测到微信或未配置 AppID，已改用模拟登录</string>
     <string name="login_wechat_failed">微信登录未完成：%s</string>
     <string name="login_success">已登录：%s</string>
     <string name="login_mock_nickname">诗友 %s</string>
+
+    <!-- 手机号登录（后端 /v1/auth/*）。验证码在 dev 模式下由服务端回显，便于联调。 -->
+    <string name="login_phone_hint">手机号</string>
+    <string name="login_code_hint">验证码</string>
+    <string name="login_send_code">获取验证码</string>
+    <string name="login_resend_in">%1$d 秒后重发</string>
+    <string name="login_phone_submit">登录 / 注册</string>
+    <string name="login_or">— 或 —</string>
+    <string name="login_phone_note">登录后收藏与阅读记录会同步到服务端；不登录也能正常使用</string>
+    <string name="login_phone_invalid">请输入 11 位手机号</string>
+    <string name="login_code_empty">请输入验证码</string>
+    <string name="login_code_sent">验证码已发送</string>
+    <string name="login_code_sent_dev">验证码已发送（开发模式：%s）</string>
+    <string name="login_failed">登录失败：%s</string>
+    <string name="login_api_offline">服务端不可用，已改用本机身份</string>
     <string name="me_not_logged_in">未登录</string>
     <string name="me_login_hint">点击登录，解锁个人资料与朗读历史</string>
     <!-- ================= 夜间模式 ================= -->

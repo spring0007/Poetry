@@ -1,6 +1,7 @@
 # 诗库数据库接入说明
 
-本文说明「诗韵」App 如何接入 `E:\chinese-poetry-master\poetry-pipeline\dist` 下的 SQLite 诗库，
+本文说明「诗韵」App 如何接入诗库 SQLite 文件（母库由
+`E:\chinese-poetry-master\poetry-pipeline` 产出，本机现在拿到的是它的抽样本），
 以及后台接口的预留位置。
 
 ---
@@ -9,40 +10,79 @@
 
 ```
 E:\chinese-poetry-master\poetry-pipeline\dist\
-├── poetry.db          110 MB   主库（poems / authors / rhythmics / sources / meta）
+├── poetry.db          110 MB   主库（poems / authors / rhythmics / sources / poem_extras / meta）
 ├── poetry-strains.db   13 MB   平仄数据（poem_strains：id, data BLOB, len）
 └── poetry-checks.db     0 MB   校验表（checks，当前为空）
 ```
 
-`poetry.db` 实测规模（schema_version 3.0）：
+`poetry.db` 实测规模（schema_version 3.3，母库行数取自抽样库的 `meta.sample_parent_rows`）：
 
 | 表 | 行数 | 说明 |
 |---|---|---|
-| `poems` | 345,358 | 作品正文 |
+| `poems` | 357,186 | 作品正文 |
 | `authors` | 13,755 | 作者 |
 | `rhythmics` | 1,462 | 词牌 / 曲牌 |
 | `sources` | 17 | 数据来源（体裁与朝代的依据） |
+| `poem_extras` | 97,230 | 译文 / 注释 / 简介 / 创作背景 / 赏析 / 配图（**3.3 新增**） |
+
+> 只有 `poems` 和 `poem_extras` 两行是刚量的（取自抽样库的 `meta.sample_parent_rows`
+> / `extras_rows`）。其余三行还是 schema 3.0 时代量的母库数字，3.3 没复量过——
+> 量级可信，精确值别引用。
 
 `poetry.db` 主要字段：
 
 ```sql
-poems(id, author_id, title, rhythmic_id, src_id, body, tags, notes, score, n_char)
-authors(id, name, dynasty, desc, n_poems)
+poems(id, uid, author_id, author_uid, title, rhythmic_id, src_id, body, tags, score, n_char)
+authors(id, uid, name, dynasty, desc, n_poems)
+rhythmics(id, name)
 sources(id, name)          -- tang-poem / song-poem / song-ci / yuan-qu …
-meta(k, v)                 -- schema_version / text_form …
+poem_extras(uid PK, translation, notes, introduction, creative_background,
+            appreciation, images, updated)
+meta(k, v)                 -- schema_version / text_form / sample …
 ```
 
-### 三个必须遵守的约定
+### 四个必须遵守的约定
 
 1. **正文是「简体 + 无空格」归一化文本**（`meta.text_form = simplified-nospace`）。
    检索前必须走 `QueryNormalizer` 归一化，否则查不到。
 2. **未开启 FTS**（`fts=0`），检索只能 `LIKE`。因此查询**不加 ORDER BY**，
-   让 SQLite 扫到 `LIMIT` 条就停，避免 34 万行全表排序。
-3. `author_id = 0` 表示佚名；`tags` / `notes` 用 `\u001F`（Unit Separator）分隔多值。
+   让 SQLite 扫到 `LIMIT` 条就停，避免 35 万行全表排序。
+3. `author_id = 0` 表示佚名（`authors` 里**没有** id 0 那一行，所以按朝代统计时要用
+   `LEFT JOIN` 并把这批归到 `unknown`，否则会凭空少掉一大批）；`tags` 用 `\u001F`
+   （Unit Separator）分隔多值。
+4. **外部数据一律按 `uid` 关联，不要按 `id`**（见下）。
 
-`id` 的高位编码了来源，例如 `0x20000000` → tang-poem、`0x29000000` → song-ci、
-`0x32000000` → yuan-qu；朝代与体裁由 `sources.name` 反解，映射见
-`data/model/PoemKind.java#fromSource()`。
+### 富文本：`poem_extras`，按 uid 关联
+
+**`poems` 表没有 `notes` 列**（3.0 有，3.3 删了）。译文 / 注释 / 简介 / 创作背景 /
+赏析 / 配图都在 `poem_extras`，主键是 `poems.uid`，不是 `poems.id`：
+
+```sql
+SELECT p.id, p.title, e.translation, e.notes, e.creative_background
+FROM poems p LEFT JOIN poem_extras e ON e.uid = p.uid;
+```
+
+- 用 `LEFT JOIN`：extras 是**逐首可选**的，缺行的作品一样要能列出来（空值由
+  `PoetryDatabase.readPoem()` 统一折成空串）。
+- `poem_extras.notes` 的**多值分隔符是 `\n`**（一行一条），不是 `tags` 那个 `\u001F`。
+  `Poem.getNoteList()` 两种都认，因为内置示例数据仍用 `SEP`。
+- `images` 列存的是文件名（如 `ff6d1b0ff8f1f4b5.jpg`），**仓库里没有对应图片资源**，
+  App 目前不读它，也没有展示位。
+
+### 为什么是 uid 而不是 id
+
+`id` 的高位编码了来源（如 `0x20000000` → tang-poem），但它**含序号**：母库每做一次
+dedup / 重排，整批 id 就会整体位移。实测当前库里 `id` 从 67,108,864 起步、最大到
+1.2e9，中间大量空洞——**任何「id 连续 / id 有序 / id 从 1 开始」的假设都是错的**。
+
+- `poems.uid` 是内容派生的稳定 uuid，重建库不变 → 译文、图片这类外部数据挂它。
+- `authors.uid` 同理，`poems.author_uid` 是它的伴生列，挂作者维度的外部引用用它。
+- 收藏 / 历史仍按 `String.valueOf(poem.getId())` 存键，因为 `UserStore` 存的是
+  **Poem 的 JSON 快照**，换库后 id 全变也照样渲染得出来；但那些 id 回查诗库会查不到，
+  所以别拿老 id 去 `poemById()` 反查。
+
+朝代与体裁由 `sources.name` / `authors.dynasty` 反解，映射见
+`data/model/PoemKind.java#fromSource()`；不要从 id 高位去推。
 
 ---
 
@@ -54,7 +94,7 @@ meta(k, v)                 -- schema_version / text_form …
 |---|---|
 | 正式 | App 内下载，落在 `DatabaseProvider#installTarget()` 解析出的路径 |
 | 开发 | `adb push` 到应用专属外部目录（Android 10+ 免权限） |
-| 过渡期退路 | ~~`assets/poetry/poetry.db`~~（**已删**，见下方「当前状态」） |
+| 过渡期退路 | ~~`assets/poetry/poetry.db`~~（**已删**，见下方「当前状态」；现在又放回来一份，只在本机、不进版本库） |
 
 `DatabaseProvider#locate()` 的查找顺序：
 
@@ -67,8 +107,16 @@ meta(k, v)                 -- schema_version / text_form …
 
 ### 当前状态
 
-- `app/src/main/assets/poetry/poetry.db` **已删**：工作区和索引里都没有了，`.gitignore` 里
-  的 `/app/src/main/assets/poetry/*.db` 挡住以后新放进来的文件。`git ls-files` 返回空即验证。
+- `app/src/main/assets/poetry/poetry.db`：**索引里没有，但工作区里有一份**
+  （2026-10-08 放入，4,014,080 B，schema 3.3 的 978 首抽样库）。
+  `.gitignore` 的 `/app/src/main/assets/poetry/*.db` 挡住它，`git ls-files` 仍返回空，
+  所以它只在**本机**生效——装包能直接吃到，但不会进版本库、别人克隆不到。
+- **换库后「看不到新数据」先查这两个坑**（踩过）：
+  1. `DatabaseProvider.copyFromAssets()` 靠 `copied_poetry.db` 这个偏好位判断「已经拷过」，
+     所以**装过旧包的设备永远不会重拷 assets**，看到的一直是老库。
+     要 `adb uninstall <pkg>`（或 `pm clear`）之后重装，或者手动删掉私有目录里那份。
+  2. `locate()` 的顺序是 **外部目录 → 私有目录 → assets**，之前 `adb push` 过的那份
+     `/sdcard/Android/data/<pkg>/files/Poetry/poetry.db` 优先级更高，会把新 assets 顶掉。
 - **但它还在历史里**：`git rm --cached` 只从索引摘掉，blob 仍挂在 HEAD 上（`git ls-tree -r HEAD`
   能查到），所以 `.git` 现在是 57 MB，**新克隆照样要拖这 57 MB**。仓库只有三个提交，
   真要瘦下来只能重写历史（`git filter-repo --path app/src/main/assets/poetry/ --invert-paths`
@@ -99,6 +147,29 @@ meta(k, v)                 -- schema_version / text_form …
 
 `PoetryDatabase` 用 `SQLiteDatabase.openDatabase(path, null, OPEN_READONLY)` 打开，
 全程只读，不会对源库写 WAL / journal。
+
+### 3.3 那次改动为什么是「静默空列表」
+
+`POEM_COLUMNS` 里写的是 `p.notes`，3.3 把这列删了 → 每条 SQL 都 `no such column`。
+而每个查询各自的 `try/catch` 会把异常记进日志就吞掉，`return new ArrayList<>()`，
+**界面表现是「所有列表都空」，不崩、不报错**。以后再遇到「装完库什么都是空的」，
+先怀疑这里，别急着怀疑数据没下下来。
+
+富文本现在一律从 `POEM_COLUMNS` + `POEM_FROM` 的
+`LEFT JOIN poem_extras e ON e.uid = p.uid` 里取（列表查询也 JOIN：富文本行很小，
+换来的是「列表塞进 Intent 的 `Poem`」与「详情页滑页时 `poemById` 重新查的 `Poem`」
+形状一致，详情页因此不需要额外查询）。
+
+另外两条与 3.3 绑定的口径：
+
+- **`authors.n_poems` 不可信**——它记的是**母库**篇数（陆游标着 9416，本库只有 7 首；
+  303 个作者对不上）。凡「有多少首」都必须现算 `COUNT(*)`：
+  `dynastyCategories()` / `topAuthors()` / `countByAuthor()` 都是这么写的。
+- **`poem_extras.images` 不用**，`poems.author_uid` 也只是存着备用（作者维度的外部引用用它）。
+
+`DbValidator.REQUIRED_TABLES` 因此把 `poem_extras` 也算进「本 App 的库」的判据：
+3.0 的老库主版本号同样是 3，`schemaCompatible()` 拦不住它，只有在**安装前**查表清单
+才挡得下来（否则装上去就是上一段那种静默空列表）。
 
 ### 换库时为什么要 `markStale()` + `reload()`
 
@@ -138,18 +209,21 @@ public static final String BASE_URL = "https://<你的域名>/poetry/";
 ```
 https://<host>/poetry/
 ├── version.json      约 300 B，App 每次检查只拉这个
-└── poetry.db         诗库本体（测试期是子集，2.2 MB）
+└── poetry.db         诗库本体（当前 978 首样本库，约 3.8 MiB）
 ```
 
 `version.json`：
 
 ```json
-{ "schema_version": "3.0", "built_at": "2026-09-24T12:19:18",
-  "bytes": 2310144, "sha256": "<64位小写十六进制，指未压缩的服务端文件>",
-  "is_subset": true, "n_poems": 2062,
+{ "schema_version": "3.3", "built_at": "2026-10-08T14:48:26",
+  "bytes": 4014080, "sha256": "<64位小写十六进制，指未压缩的服务端文件>",
+  "is_subset": true, "n_poems": 978,
   "url": "https://<host>/poetry/poetry.db",
   "note": "测试期子集库" }
 ```
+
+`schema_version` 只比**主版本号**（`3.3` / `3.4` / `3.9` 互通，`4.0` 拒绝），
+规则见 `PoetryDatabase.Meta#schemaCompatible()`。
 
 `sha256` 必须是**未压缩文件**的。App 请求时带 `Accept-Encoding: identity`——否则中间有
 gzip 代理时 `Content-Length`、`Range` 偏移和这个 sha 全都指向压缩后的字节，整套校验静默错位。
@@ -161,6 +235,13 @@ gzip 代理时 `Content-Length`、`Range` 偏移和这个 sha 全都指向压缩
 
 ### 4.2 测试期的子集库怎么造
 
+> ⚠️ `tools/make-subset-db.py` **还没跟上 schema 3.3**，四条硬编码要一起改：
+> `EXPECTED_SCHEMA_VERSION = "3.0"`、只认五张表（不拷 `poem_extras`）、
+> `subset=1`（新标记是 `sample=1`）、`EXPECTED_TABLE_COUNT = 17`（sources 行数）。
+> 现在拿它跑 3.3 的母库，光自检那一关就会以「schema_version 应为 3.0」失败；
+> 就算绕过自检，产出物也会被 `DbValidator` 以「诗库缺少表: poem_extras」拒掉。
+> 当前 assets 里那份 978 首样本是新管线的**抽样器**产的（`sample=1`），不是这个脚本。
+
 ```bash
 python -X utf8 tools/make-subset-db.py \
     --src E:/chinese-poetry-master/poetry-pipeline/dist/poetry.db \
@@ -169,16 +250,18 @@ python -X utf8 tools/make-subset-db.py \
     --url https://<你的域名>/poetry/poetry.db
 ```
 
-产出 `dist-server/poetry.db`（2,310,144 B / 2,062 首 / 309 作者）和 `dist-server/version.json`，
-并把 sha256 填好。`dist-server/` 已 gitignore（重建一次 sha 就变，不该进版本库）。
+产出 `dist-server/poetry.db` 和 `dist-server/version.json`，并把 sha256 填好。
+`dist-server/` 已 gitignore（重建一次 sha 就变，不该进版本库）。
+（历史数字：旧脚本对旧母库跑 `--per-source 200` 得到 2,310,144 B / 2,062 首 / 309 作者，
+仅作参考——脚本没跟上 3.3，见上方警告。）
 
 脚本做的是**行拷贝**（`shutil.copy2` 后按 `src_id` 取 `score` 前 N），不是重新跑
 `poetry-pipeline`，所以 schema、索引、`sqlite_stat1` 与线上库逐字节同构，秒级完成。
 **绝不能对 `dist/poetry.db` 原地执行。**
 
 `--min-hits 20` 会按 `HOT_KEYWORDS` / `Theme.defaults()` 兜底补行，保证首页热门搜索和主题
-chip 点下去不为空（本次补了 130 条）。目标规模：`--per-source 50 → 625 首 / 1.5 MB`，
-`200 → 2,062 首 / 2.2 MB`，`1000 → 5,612 首 / 3.5 MB`。
+chip 点下去不为空（旧母库上一次补了 130 条）。旧脚本的历史规模参考：`--per-source 50 → 625 首`，
+`200 → 2,062 首`，`1000 → 5,612 首`。
 
 ### 4.3 状态机
 
@@ -227,6 +310,10 @@ manifest.isSubset == local.isSubset && builtAt <= local.builtAt → UP_TO_DATE
 
 1. **`is_subset` 参与身份判定。** 服务端换成完整库时，哪怕子集库的 `built_at` 更新也绝不能算
    「已是最新」。**测试转生产就是把服务端的 `is_subset` 改成 `false`——不发版、不重装、APK 不动。**
+   库里那一侧的标记有两个名字：老管线写 `meta.subset='1'`，新管线（3.3）写 `meta.sample='1'`
+   （并附带 `sample_parent_rows` / `sample_per_group` / `sample_seed` 等，够人看，
+   App 不读）。`PoetryDatabase.Meta` 把两者折成同一个 `subset` 布尔——
+   不折的话，新库会被 `DbInstaller.isForeign()` 判成「库来源不明」，每次检查都要求重下。
 2. **FOREIGN 规则**把 SharedPreferences 当作可失效的缓存。没有它，adb push 一个完整库盖掉
    下载来的子集后，prefs 会一直骗 App 说「已最新」。
 3. **schema 主版本闸门**在安装前拦住 `4.0` 的库，报「诗库版本不兼容，请升级 App」，
@@ -237,7 +324,7 @@ manifest.isSubset == local.isSubset && builtAt <= local.builtAt → UP_TO_DATE
 ### 4.6 真机自测清单
 
 1. 卸载重装 → 冷启动：走示例数据，我的页显示「开始下载」→ 点它 → 看到进度 → 完成后变
-   「已载入本地诗库」，**列表立刻从 15 首变成 2,062 首**。数字没变就是 `ensureOpen()` 的早退
+   「已载入本地诗库」，**列表立刻从 15 首变成新库的篇数（当前 978 首）**。数字没变就是 `ensureOpen()` 的早退
    没被 generation 戳破。
 2. 下到一半 `adb shell am force-stop`，重启：应显示旧/示例状态，`.part` 要么续传要么被 gc；
    再点下载应能成功，**绝不能出现被截断的库被装上**。
@@ -285,7 +372,13 @@ public static final boolean ENABLED = false;
 
 ## 6. 性能建议
 
-* 34 万行 `LIKE '%x%'` 是主要开销，建议后端就绪后把检索迁到服务端；
+* 35 万行 `LIKE '%x%'` 是主要开销，建议后端就绪后把检索迁到服务端；
   离线场景可考虑给 `poems` 建 FTS5 虚拟表（需另行导出，源库未开）。
-* `score`（0–255，均值 173.5）可直接用作「精选」排序依据。
+* `score`（0–255）可直接用作「精选」排序依据。母库均值 173.5，而当前 978 首样本
+  均值只有 **57.6**（978 首里 683 首是 0）——抽样按「朝代/体裁分组各取 100 首」来，
+  `score` 分布不再代表母库，所以**别拿样本库的分数分布去调阈值**。
+* 母库里有 5 首「一整本书算一首」的超长作品（古文观止 141,014 字、文字蒙求 39,964、
+  唐诗三百首 25,056、幼学琼林 21,368、千家诗 10,020），分数都是 0，所以「精选」天然
+  不会选到；但「随机换一首」会，因此 `PoetryDatabase.MAX_RANDOM_N_CHAR = 2000` 把它们
+  挡在随机池外（搜索/列表命中的仍然照常打开——那是用户自己要看的）。
 * 平仄在独立库 `poetry-strains.db`，按需懒加载，不要在主列表查询里 JOIN。

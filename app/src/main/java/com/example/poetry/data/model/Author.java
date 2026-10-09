@@ -9,12 +9,15 @@ import androidx.annotation.NonNull;
 public class Author {
 
     private long id;
+    /** 内容派生的稳定键（authors.uid）。本地库与后端都有这一列，换库不变，接口一律按它查。 */
+    private String uid;
     private String name;
     private String dynasty;
     private String desc;
     private int nPoems;
 
     public Author() {
+        this.uid = "";
         this.name = "";
         this.dynasty = "";
         this.desc = "";
@@ -26,6 +29,27 @@ public class Author {
 
     public void setId(long id) {
         this.id = id;
+    }
+
+    /** 稳定键：本地库与后端都以它关联作者，{@code id} 反而会随库版本整体错位 */
+    @NonNull
+    public String getUid() {
+        return uid;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid == null ? "" : uid;
+    }
+
+    /**
+     * 拿去向后端 / 本地库查这位作者时用的引用。
+     *
+     * <p>优先 uid：它是内容派生的，后端换成别的库也认得。
+     * 没有 uid（内置示例数据）时退化成数字 id，本地库按 id 查照样能用。
+     */
+    @NonNull
+    public String getLookupRef() {
+        return uid.isEmpty() ? String.valueOf(id) : uid;
     }
 
     public String getName() {

@@ -66,7 +66,7 @@ public class HistoryActivity extends AppCompatActivity {
 
         adapter = new HistoryAdapter(poem -> DetailActivity.open(this, poem),
                 poem -> {
-                    repository.removeHistory(poem.getId());
+                    repository.removeHistory(poem);
                     refresh();
                 });
         binding.historyList.setLayoutManager(new LinearLayoutManager(this));
@@ -195,7 +195,7 @@ public class HistoryActivity extends AppCompatActivity {
                 ViewCompat.setBackgroundTintList(row.rowBadge, ColorStateList.valueOf(light));
                 row.rowBadge.setTextColor(color);
 
-                String when = formatReadAt(store.getReadAt(poem.getId()));
+                String when = formatReadAt(store.getReadAt(poem));
                 row.rowMeta.setText(when.isEmpty()
                         ? poem.getAuthorLabel()
                         : when + " · " + poem.getAuthorLabel());

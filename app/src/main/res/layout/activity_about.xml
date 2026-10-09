@@ -118,6 +118,13 @@
                     android:textAppearance="@style/TextAppearance.Poetry.Body" />
 
                 <TextView
+                    android:id="@+id/aboutApi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_1"
+                    android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+
+                <TextView
                     android:id="@+id/aboutLibraryNote"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

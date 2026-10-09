@@ -413,6 +413,11 @@
                 android:id="@+id/rowDataSource"
                 layout="@layout/view_settings_row" />
 
+            <!-- 服务端链路状态：只读说明，不可点（这里没有「下一步」可做） -->
+            <include
+                android:id="@+id/rowApi"
+                layout="@layout/view_settings_row" />
+
             <TextView
                 android:id="@+id/dbHint"
                 android:layout_width="match_parent"

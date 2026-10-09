@@ -10,8 +10,10 @@ import androidx.annotation.NonNull;
 /**
  * 诗库下载的触发策略与地址常量。三个行为各是一个常量，调策略只改这里。
  *
- * <p>地址目前是**占位**：{@link ApiConfig#BASE_URL} 还是 {@code https://api.example.com/poetry/}，
- * 把那一行换成真实域名，下载链路就活了。{@link #MANIFEST_URL} 是全工程唯一需要填的地址。
+ * <p>地址来自 {@link ApiConfig#BASE_URL}，也就是 {@code local.properties} 里的
+ * {@code API_BASE_URL}。清单文件挂后端的 {@code /static} 下，
+ * 所以是 {@code <根地址>/static/version.json} —— 少写那个 {@code static/} 前缀会拿到 404，
+ * 而这在界面上只表现为「检查更新失败」，很难一眼看出是路径错了。
  */
 public final class DbDownloadPolicy {
 
@@ -32,7 +34,7 @@ public final class DbDownloadPolicy {
     public static final Trigger TRIGGER = Trigger.MANUAL_ONLY;
 
     /** 服务端 version.json 地址。**全工程只此一处要填。** */
-    public static final String MANIFEST_URL = ApiConfig.BASE_URL + "version.json";
+    public static final String MANIFEST_URL = ApiConfig.BASE_URL + ApiConfig.API_MANIFEST;
 
     /** 自动模式下两次检查的最小间隔（节流）。纯离线冷启动一次检查要耗掉整个连接超时。 */
     public static final long CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L;

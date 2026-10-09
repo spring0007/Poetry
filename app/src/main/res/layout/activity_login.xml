@@ -70,7 +70,96 @@
                 android:text="@string/login_slogan"
                 android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
 
-            <!-- 微信授权（主路径） -->
+            <!--
+                手机号登录：接后端 /v1/auth/code + /v1/auth/login。
+                放在微信上面，因为它是**不需要任何第三方 App 和 AppID** 的那条路，
+                装好就能用；服务端不可用时整块自动收起（见 LoginActivity）。
+            -->
+            <LinearLayout
+                android:id="@+id/phoneLoginBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                android:orientation="vertical">
+
+                <EditText
+                    android:id="@+id/loginPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_search_field_selector"
+                    android:digits="0123456789"
+                    android:hint="@string/login_phone_hint"
+                    android:importantForAutofill="no"
+                    android:inputType="phone"
+                    android:maxLength="11"
+                    android:paddingStart="@dimen/space_4"
+                    android:paddingEnd="@dimen/space_4"
+                    android:singleLine="true"
+                    android:textAppearance="@style/TextAppearance.Poetry.Body"
+                    android:textColorHint="?attr/colorOutline" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/loginCode"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_search_field_selector"
+                        android:digits="0123456789"
+                        android:hint="@string/login_code_hint"
+                        android:importantForAutofill="no"
+                        android:inputType="number"
+                        android:maxLength="6"
+                        android:paddingStart="@dimen/space_4"
+                        android:paddingEnd="@dimen/space_4"
+                        android:singleLine="true"
+                        android:textAppearance="@style/TextAppearance.Poetry.Body"
+                        android:textColorHint="?attr/colorOutline" />
+
+                    <Button
+                        android:id="@+id/loginSendCode"
+                        style="@style/Widget.Poetry.ToolButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="@dimen/space_2"
+                        android:minWidth="0dp"
+                        android:text="@string/login_send_code" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/loginPhoneSubmit"
+                    style="@style/Widget.Poetry.PrimaryButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:text="@string/login_phone_submit" />
+
+                <TextView
+                    android:id="@+id/loginPhoneNote"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:gravity="center"
+                    android:text="@string/login_phone_note"
+                    android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/loginOrDivider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_4"
+                android:gravity="center"
+                android:text="@string/login_or"
+                android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
+
+            <!-- 微信授权（配置了 AppID 时才可用） -->
             <Button
                 android:id="@+id/loginWechat"
                 style="@style/Widget.Poetry.PrimaryButton"

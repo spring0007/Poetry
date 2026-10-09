@@ -7,9 +7,10 @@ import java.io.File;
 /**
  * 诗库下载的三个回调，**都在主线程**。
  *
- * <p>为什么另起一个接口而不扩 {@link ApiCallback}：那是 JSON API 的契约，
- * 往里加第三个方法会逼着 {@code RemotePoetrySource} 的 8 个实现和 {@code PoetryRepository}
- * 里 2 个匿名类都长出一个空实现。下载是另一类操作，进度、取消、校验都只有它有。
+ * <p>为什么另起一个接口而不复用 {@link com.example.poetry.data.Callback}：后者是
+ * 「一次调用一个结果」的泛型回调（{@code onData} / {@code onError}），而下载是
+ * 一条**过程**：进度要报很多次，还要能被调用方主动取消。硬塞进 {@code Callback}
+ * 只会让每个实现都长出一堆用不上的方法。下载是另一类操作，进度、取消、校验都只有它有。
  */
 public interface DownloadCallback {
 

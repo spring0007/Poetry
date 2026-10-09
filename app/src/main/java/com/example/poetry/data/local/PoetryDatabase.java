@@ -28,17 +28,25 @@ import java.util.Set;
 /**
  * 本地诗库（{@code poetry.db}）只读封装。
  * <p>
- * 表结构（schema_version = 3.0）：
+ * 表结构（schema_version = 3.3）：
  * <pre>
- *   poems(id, author_id, title, rhythmic_id, src_id, body, tags, notes, score, n_char)
- *   authors(id, name, dynasty, desc, n_poems)
+ *   poems(id, uid, author_id, author_uid, title, rhythmic_id, src_id, body, tags, score, n_char)
+ *   authors(id, uid, name, dynasty, desc, n_poems)
  *   rhythmics(id, name)         -- 词牌 / 曲牌
  *   sources(id, name)           -- tang-poem / song-ci / yuan-qu …
+ *   poem_extras(uid PK, translation, notes, introduction, creative_background, appreciation, images)
  *   meta(k, v)
  *   poetry-strains.db → poem_strains(id, data BLOB, len)   -- 平仄（可选包）
  * </pre>
- * 注意：正文为「简体 + 无空格」的归一化文本，且未开启 FTS，
- * 因此所有关键词检索都要先经过 {@link QueryNormalizer}。
+ * 注意：
+ * <ul>
+ *   <li>正文为「简体 + 无空格」的归一化文本，且未开启 FTS，
+ *       因此所有关键词检索都要先经过 {@link QueryNormalizer}；</li>
+ *   <li><b>poems 已没有 notes 列</b>，注释/译文/赏析/背景/简介都在 {@code poem_extras} 里，
+ *       按 {@code poems.uid} 关联（不是按 id）；</li>
+ *   <li>{@code authors.n_poems} 记的是**母库**篇数（陆游标着 9416 而本库只有 7 首），
+ *       任何「有多少首」的显示都必须现算 {@code COUNT(*)}，不能直接用它。</li>
+ * </ul>
  */
 public final class PoetryDatabase {
 
@@ -50,23 +58,40 @@ public final class PoetryDatabase {
      * 一个 4.0 的库配 3.0 的 App 会在三个界面之后才抛 {@code SQLiteException}，
      * 不如在安装前就说清楚。
      */
-    public static final String SCHEMA_VERSION = "3.0";
+    public static final String SCHEMA_VERSION = "3.3";
 
     /** 设计稿「热门搜索」固定词 */
     public static final String[] HOT_KEYWORDS = {
             "中秋", "明月", "李白", "苏轼", "思乡", "边塞", "田园", "宋词", "元曲", "离骚"
     };
 
+    /**
+     * 「随机换一首」的字数上限。
+     *
+     * <p>库里有 5 首超过 1 万字的合集（「古文观止」141,014 字、「千家诗」10,020 字），
+     * 它们是母库里按整本收录的一条记录，抽中后正文要铺几千行。
+     */
+    private static final int MAX_RANDOM_N_CHAR = 2000;
+
+    /**
+     * 作品查询的公共列。富文本一律从 {@code poem_extras} 取（左连接，缺行时为 NULL，
+     * 由 {@link #readPoem} 统一折成空串）。
+     *
+     * <p>列表查询也带上这些列是有意的：富文本每行不到 1 KB，而这样列表页塞进 Intent 的
+     * {@code Poem} 与详情页滑动时重新查出来的就是**同一个形状**，详情页不需要再多一次查询。
+     */
     private static final String POEM_COLUMNS =
-            "p.id AS _id, p.author_id, p.title, p.rhythmic_id, p.src_id, p.body, p.tags, p.notes,"
+            "p.id AS _id, p.uid, p.author_id, p.title, p.rhythmic_id, p.src_id, p.body, p.tags,"
                     + " p.score, p.n_char, a.name AS author_name, a.dynasty AS author_dynasty,"
-                    + " r.name AS rhythmic_name, s.name AS src_name";
+                    + " r.name AS rhythmic_name, s.name AS src_name,"
+                    + " e.translation, e.notes, e.introduction, e.creative_background, e.appreciation";
 
     private static final String POEM_FROM =
             " FROM poems p"
                     + " LEFT JOIN authors a ON a.id = p.author_id"
                     + " LEFT JOIN rhythmics r ON r.id = p.rhythmic_id"
-                    + " LEFT JOIN sources s ON s.id = p.src_id";
+                    + " LEFT JOIN sources s ON s.id = p.src_id"
+                    + " LEFT JOIN poem_extras e ON e.uid = p.uid";
 
     private static volatile PoetryDatabase instance;
 
@@ -246,7 +271,12 @@ public final class PoetryDatabase {
         @Nullable
         public final String builtAt;
 
-        /** {@code subset='1'} 表示测试期子集库；完整库里这个键不存在。 */
+        /**
+         * 是不是被裁过的样本库。
+         *
+         * <p>两个键都算：老管线写 {@code subset='1'}，新管线（3.3）改成 {@code sample='1'}。
+         * 完整库里两个键都不存在。
+         */
         public final boolean subset;
 
         /** 库自己声称的篇数，用来和 {@code COUNT(*)} 对照。 */
@@ -307,7 +337,10 @@ public final class PoetryDatabase {
     public static Meta readMetaFrom(@NonNull SQLiteDatabase handle) {
         String schema = null;
         String builtAt = null;
-        String subset = null;
+        // subset 与 sample 是两种子集标记：老管线写 subset=1，新管线改成 sample=1
+        // （并额外带 sample_parent / sample_per_group）。对 App 来说它们是同一件事——
+        // 「这不是母库，是被裁过的样本」——所以放在同一个布尔里。
+        boolean subset = false;
         long nPoems = 0L;
         Cursor c = null;
         try {
@@ -319,8 +352,8 @@ public final class PoetryDatabase {
                     schema = v;
                 } else if ("built_at".equals(k)) {
                     builtAt = v;
-                } else if ("subset".equals(k)) {
-                    subset = v;
+                } else if ("subset".equals(k) || "sample".equals(k)) {
+                    subset = "1".equals(v) || subset;
                 } else if ("n_poems".equals(k)) {
                     nPoems = parseLongOrZero(v);
                 }
@@ -331,7 +364,7 @@ public final class PoetryDatabase {
         } finally {
             closeQuietly(c);
         }
-        return new Meta(schema, builtAt, "1".equals(subset), nPoems);
+        return new Meta(schema, builtAt, subset, nPoems);
     }
 
     private static long parseLongOrZero(@Nullable String value) {
@@ -405,6 +438,37 @@ public final class PoetryDatabase {
     }
 
     /**
+     * 按 uid 取一首（本地库侧）。
+     *
+     * <p>用途是「先联网看了列表、中途断网，再点进详情」这条路径：这时手上只有远端给的
+     * uid，而本库的作品表是按 {@code id} 组织的，需要一次换算。
+     *
+     * <p>注意这**不是**索引查找：导出的诗库只建了主键，没有 {@code uid} 的二级索引，
+     * 所以这是一次全表扫描。放在这条兜底路径上可以接受（用户点一次详情才走一次），
+     * 但别把它挪到列表或检索里去用。真要高频按 uid 查，得让导出脚本补上
+     * {@code CREATE UNIQUE INDEX ... ON poems(uid)}。
+     */
+    @Nullable
+    public Poem poemByUid(@NonNull String uid) {
+        if (!isReady() || uid.isEmpty()) {
+            return null;
+        }
+        Cursor c = null;
+        try {
+            c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM + " WHERE p.uid = ? LIMIT 1",
+                    new String[]{uid});
+            if (c.moveToFirst()) {
+                return readPoem(c);
+            }
+        } catch (Exception e) {
+            LogUtil.e("poemByUid failed", e);
+        } finally {
+            closeQuietly(c);
+        }
+        return null;
+    }
+
+    /**
      * 全库随机取一首。
      *
      * <p>不能写 {@code ORDER BY RANDOM()}：34 万行会全表扫描再排序，慢到不能用。
@@ -412,6 +476,10 @@ public final class PoetryDatabase {
      * 再取「id 不小于这个起点的第一条」——两次都是索引查找，O(log n)。
      * id 有空洞时各首被抽中的概率会有偏移（空洞后面那首更容易中），
      * 对「换一首看看」这个用途足够了。
+     *
+     * <p>只从 {@link #MAX_RANDOM_N_CHAR} 字以内的作品里抽：「古文观止」（14 万字）、
+     * 「唐诗三百首」这类蒙学/选集整本也算一首，点开就是一屏几千行，不适合当随机推荐。
+     * 它们的 score 都是 0，{@link #featured} 天然把它们排在后面，只有随机这条路会撞上。
      *
      * @param excludeId 尽量避开的那首（≤ 0 表示不排除）
      */
@@ -447,13 +515,16 @@ public final class PoetryDatabase {
         try {
             c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
                     + " WHERE p.id >= ABS(RANDOM() % (SELECT MAX(id) FROM poems)) + 1"
+                    + " AND p.n_char <= " + MAX_RANDOM_N_CHAR
                     + " ORDER BY p.id ASC LIMIT 1", null);
             if (c.moveToFirst()) {
                 return readPoem(c);
             }
-            // MAX(id) 是 NULL（空表）时上面的比较恒为 NULL，兜一首第一首
+            // 两个兜底合成一个：MAX(id) 是 NULL（空表）时上面的比较恒为 NULL，
+            // 随机起点之后又恰好没有短篇时也会空手而归，都退到「第一首短篇」。
             closeQuietly(c);
             c = db.rawQuery("SELECT " + POEM_COLUMNS + POEM_FROM
+                    + " WHERE p.n_char <= " + MAX_RANDOM_N_CHAR
                     + " ORDER BY p.id ASC LIMIT 1", null);
             if (c.moveToFirst()) {
                 return readPoem(c);
@@ -675,7 +746,12 @@ public final class PoetryDatabase {
         Map<String, Long> counts = new HashMap<>();
         Cursor c = null;
         try {
-            c = db.rawQuery("SELECT dynasty, SUM(n_poems) FROM authors GROUP BY dynasty", null);
+            // 现算 COUNT(*) 而不是 SUM(authors.n_poems)：后者记的是母库篇数，会大出两个数量级。
+            // 空朝代（佚名，poems.author_id = 0，authors 里没有这一行）归到 unknown，
+            // 否则这 169 首会在宫格里凭空消失。
+            c = db.rawQuery("SELECT COALESCE(NULLIF(a.dynasty, ''), 'unknown') AS dynasty,"
+                    + " COUNT(*) FROM poems p LEFT JOIN authors a ON a.id = p.author_id"
+                    + " GROUP BY 1", null);
             while (c.moveToNext()) {
                 counts.put(c.getString(0), c.getLong(1));
             }
@@ -732,7 +808,13 @@ public final class PoetryDatabase {
         return count;
     }
 
-    /** 热门作者（按作品数） */
+    /**
+     * 热门作者（按作品数）。
+     *
+     * <p>篇数一律现算：{@code authors.n_poems} 存的是母库篇数（全库 SUM 13 万，而本库只有 978 首），
+     * 直接拿来排序会让「陆游 9416 首」这种数字出现在只有 7 首的列表上。
+     * 内连接顺带把一首作品都没有的作者排除掉。
+     */
     @NonNull
     public List<Author> topAuthors(int limit) {
         List<Author> out = new ArrayList<>();
@@ -741,15 +823,19 @@ public final class PoetryDatabase {
         }
         Cursor c = null;
         try {
-            c = db.rawQuery("SELECT id, name, dynasty, desc, n_poems FROM authors"
-                    + " ORDER BY n_poems DESC LIMIT " + Math.max(1, limit), null);
+            // uid 一并选出来：作者详情页要拿它去后端查作品，
+            // 而 poems.id 是母库 ROWID，换一次库就错位，不能当跨端标识用。
+            c = db.rawQuery("SELECT a.id, a.uid, a.name, a.dynasty, a.desc, COUNT(p.id) AS n_poems"
+                    + " FROM authors a JOIN poems p ON p.author_id = a.id"
+                    + " GROUP BY a.id, a.uid ORDER BY n_poems DESC, a.id ASC LIMIT " + Math.max(1, limit), null);
             while (c.moveToNext()) {
                 Author author = new Author();
                 author.setId(c.getLong(0));
-                author.setName(c.getString(1));
-                author.setDynasty(c.getString(2));
-                author.setDesc(c.getString(3));
-                author.setNPoems(c.getInt(4));
+                author.setUid(str(c, "uid"));
+                author.setName(str(c, "name"));
+                author.setDynasty(str(c, "dynasty"));
+                author.setDesc(str(c, "desc"));
+                author.setNPoems(c.getInt(5));
                 out.add(author);
             }
         } catch (Exception e) {
@@ -758,6 +844,67 @@ public final class PoetryDatabase {
             closeQuietly(c);
         }
         return out;
+    }
+
+    /**
+     * 某作者在本库的实际篇数。
+     *
+     * <p>给作者详情页兜底用：从「热门作者」进来时篇数由 {@link #topAuthors} 透传，
+     * 但从其它入口（列表按作者筛选）进来时没带，得现查一次。
+     */
+    public int countByAuthor(long authorId) {
+        if (!isReady()) {
+            return 0;
+        }
+        Cursor c = null;
+        try {
+            c = db.rawQuery("SELECT COUNT(*) FROM poems WHERE author_id = ?",
+                    new String[]{String.valueOf(authorId)});
+            if (c.moveToFirst()) {
+                return c.getInt(0);
+            }
+        } catch (Exception e) {
+            LogUtil.e("countByAuthor failed", e);
+        } finally {
+            closeQuietly(c);
+        }
+        return 0;
+    }
+
+    /**
+     * 按 uid 取作者（本地库侧）。
+     *
+     * <p>给「后端不可用、但手上只有 uid」的场景兜底：接口一律按 uid 传作者标识，
+     * 而本库的作品表是按数字 {@code author_id} 关联的，中间需要这一步换算。
+     * 篇数口径与 {@link #topAuthors} 保持一致——现算 {@code COUNT(*)}，
+     * 绝不读 {@code authors.n_poems}（那是母库篇数）。
+     */
+    @Nullable
+    public Author authorByUid(@NonNull String uid) {
+        if (!isReady() || uid.isEmpty()) {
+            return null;
+        }
+        Cursor c = null;
+        try {
+            c = db.rawQuery("SELECT a.id, a.uid, a.name, a.dynasty, a.desc,"
+                    + " (SELECT COUNT(*) FROM poems p WHERE p.author_id = a.id) AS n_poems"
+                    + " FROM authors a WHERE a.uid = ? LIMIT 1", new String[]{uid});
+            if (c.moveToFirst()) {
+                Author author = new Author();
+                author.setId(c.getLong(0));
+                author.setUid(str(c, "uid"));
+                author.setName(str(c, "name"));
+                author.setDynasty(str(c, "dynasty"));
+                author.setDesc(str(c, "desc"));
+                author.setNPoems(c.getInt(5));
+                return author;
+            }
+        } catch (Exception e) {
+            LogUtil.e("authorByUid failed", e);
+        } finally {
+            closeQuietly(c);
+        }
+        return null;
     }
 
     // ------------------------------------------------------------ 查询：平仄
@@ -794,18 +941,32 @@ public final class PoetryDatabase {
     private static Poem readPoem(@NonNull Cursor c) {
         Poem poem = new Poem();
         poem.setId(c.getLong(c.getColumnIndexOrThrow("_id")));
+        poem.setUid(str(c, "uid"));
         poem.setAuthorId(c.getLong(c.getColumnIndexOrThrow("author_id")));
-        poem.setTitle(c.getString(c.getColumnIndexOrThrow("title")));
-        poem.setSrcName(c.getString(c.getColumnIndexOrThrow("src_name")));
-        poem.setBody(c.getString(c.getColumnIndexOrThrow("body")));
-        poem.setTags(c.getString(c.getColumnIndexOrThrow("tags")));
-        poem.setNotes(c.getString(c.getColumnIndexOrThrow("notes")));
+        poem.setTitle(str(c, "title"));
+        poem.setSrcName(str(c, "src_name"));
+        poem.setBody(str(c, "body"));
+        poem.setTags(str(c, "tags"));
         poem.setScore(c.getInt(c.getColumnIndexOrThrow("score")));
         poem.setNChar(c.getInt(c.getColumnIndexOrThrow("n_char")));
-        poem.setAuthorName(c.getString(c.getColumnIndexOrThrow("author_name")));
-        poem.setDynasty(c.getString(c.getColumnIndexOrThrow("author_dynasty")));
-        poem.setRhythmic(c.getString(c.getColumnIndexOrThrow("rhythmic_name")));
+        poem.setAuthorName(str(c, "author_name"));
+        poem.setDynasty(str(c, "author_dynasty"));
+        poem.setRhythmic(str(c, "rhythmic_name"));
+        // 富文本来自 poem_extras：没有对应行时左连接给的是 NULL，统一折成空串，
+        // 免得调用方（详情页各处都是 xxx.isEmpty()）碰见 null。
+        poem.setTranslation(str(c, "translation"));
+        poem.setNotes(str(c, "notes"));
+        poem.setIntroduction(str(c, "introduction"));
+        poem.setCreativeBackground(str(c, "creative_background"));
+        poem.setAppreciation(str(c, "appreciation"));
         return poem;
+    }
+
+    /** 取字符串列，NULL 折成空串。 */
+    @NonNull
+    private static String str(@NonNull Cursor c, @NonNull String column) {
+        String value = c.getString(c.getColumnIndexOrThrow(column));
+        return value == null ? "" : value;
     }
 
     @NonNull

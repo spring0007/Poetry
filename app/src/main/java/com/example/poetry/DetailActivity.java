@@ -34,6 +34,7 @@ import com.example.poetry.util.Pinyin;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -50,7 +51,7 @@ import java.util.List;
 public class DetailActivity extends AppCompatActivity {
 
     private static final String EXTRA_POEM = "extra_poem";
-    /** 来源列表各首诗的 id，按展示顺序 */
+    /** 来源列表各首诗的引用（uid 优先，无 uid 时是数字 id），按展示顺序 */
     private static final String EXTRA_QUEUE = "extra_queue";
     /** 当前这首在 {@link #EXTRA_QUEUE} 里的下标 */
     private static final String EXTRA_INDEX = "extra_index";
@@ -74,10 +75,15 @@ public class DetailActivity extends AppCompatActivity {
     private boolean loopPlay;
 
     /**
-     * 翻页链条。列表模式下是进入时的 id 快照；随机模式下从当前这首开始，每往下翻一首就
-     * 追加一个 id —— 于是「随机」也天然有了会话内的回退历史（下滑能退回刚才抽到的那几首）。
+     * 翻页链条。列表模式下是进入时的引用快照；随机模式下从当前这首开始，每往下翻一首就
+     * 追加一个引用 —— 于是「随机」也天然有了会话内的回退历史（下滑能退回刚才抽到的那几首）。
+     *
+     * <p>存 {@link Poem#getLookupRef()} 而不是 {@code id}：详情页现在优先走后端，而
+     * {@code poems.id} 是母库 ROWID，与接口认的引用不是一回事（见 {@link Poem#getLookupRef()}）。
+     * 也不能存 {@code Poem} 本身 —— 一首诗带着正文、注释、译文全文，整包走 Binder
+     * 会撞 1MB 的 {@code TransactionTooLargeException}。
      */
-    private long[] queueIds = new long[0];
+    private String[] queueRefs = new String[0];
     private int queueIndex = -1;
     /** 进入时带了来源列表（false 即随机模式） */
     private boolean fromList;
@@ -86,6 +92,24 @@ public class DetailActivity extends AppCompatActivity {
     private boolean switching;
     /** 取数令牌：只有最后一次请求的回调算数（同 MainActivity.searchSeq 的用法） */
     private int switchSeq;
+
+    /**
+     * 基础页签个数（译文 / 注释 / 赏析）。
+     *
+     * <p>它们的位置是被别处钉死的：{@code bindTools()} 里「注释」按钮写死了
+     * {@code getTabAt(1)}。所以可选页签只许从尾部追加，这三个一个都不能挪、不能少。
+     */
+    private static final int BASE_TAB_COUNT = 3;
+
+    /**
+     * 与页签一一对应的内容种类。
+     *
+     * <p>可选页签按当前这首有没有数据增删，下标会跟着漂，所以内容分发认「种类」不认裸下标
+     * ——否则「创作背景」插进来之后，看「赏析」会读到背景。
+     */
+    private final List<ContentTab> contentTabKinds = new ArrayList<>();
+    /** 重建页签期间压住 {@code OnTabSelectedListener}，别在页签半成品状态下刷一次内容 */
+    private boolean suppressTabCallback;
 
     /** 本次手势是否已经翻过一篇了：一次拖动只翻一篇，不因为一直按着就连翻 */
     private boolean swipeConsumed;
@@ -131,9 +155,9 @@ public class DetailActivity extends AppCompatActivity {
      * 带上来源列表打开：上滑 / 下滑沿 {@code list} 的顺序翻。
      * 到头就停住并提示，既不循环也不跳到随机。
      *
-     * <p>只把 id 传过去，不传 {@code Poem}：书架的收藏数没有上限，而一首诗带着正文、
+     * <p>只把引用传过去，不传 {@code Poem}：书架的收藏数没有上限，而一首诗带着正文、
      * 注释、译文全文，整包走 Binder 会撞 1MB 的 {@code TransactionTooLargeException}。
-     * 翻页时再用 {@code poemById} 异步取回完整内容。
+     * 翻页时再用 {@code poemByRef} 异步取回完整内容。
      *
      * @param list 来源列表，按界面上的展示顺序；找不到 {@code poem} 时退化成随机模式
      */
@@ -141,17 +165,14 @@ public class DetailActivity extends AppCompatActivity {
                                   @NonNull Poem poem) {
         Intent intent = new Intent(context, DetailActivity.class);
         intent.putExtra(EXTRA_POEM, poem);
-        long[] ids = new long[list.size()];
-        int index = -1;
+        String[] refs = new String[list.size()];
         for (int i = 0; i < list.size(); i++) {
-            Poem item = list.get(i);
-            ids[i] = item.getId();
-            if (index < 0 && item.getId() == poem.getId()) {
-                index = i;
-            }
+            refs[i] = list.get(i).getLookupRef();
         }
+        // 用 indexOf 找自己：Poem.equals 按 identityKey（uid 优先）比，比 id 稳
+        int index = list.indexOf(poem);
         if (index >= 0) {
-            intent.putExtra(EXTRA_QUEUE, ids);
+            intent.putExtra(EXTRA_QUEUE, refs);
             intent.putExtra(EXTRA_INDEX, index);
             intent.putExtra(EXTRA_LIST_MODE, true);
         }
@@ -194,6 +215,8 @@ public class DetailActivity extends AppCompatActivity {
         bindTabs();
         bindPlayer();
         bindGestures();
+        // 列表接口只给 brief（不含 body），从列表点进来时正文是空的 —— 补一次详情
+        loadFullDetailIfNeeded();
         // 偏好里打开了「进入详情自动朗读」，等页面稳住后自动开读
         if (store.isAutoPlay()) {
             binding.getRoot().postDelayed(this::startPlay, 600);
@@ -208,15 +231,15 @@ public class DetailActivity extends AppCompatActivity {
      * 区别只剩「往后没有了是提示还是再抽一首」。
      */
     private void restoreQueue() {
-        long[] queue = getIntent().getLongArrayExtra(EXTRA_QUEUE);
+        String[] queue = getIntent().getStringArrayExtra(EXTRA_QUEUE);
         int index = getIntent().getIntExtra(EXTRA_INDEX, -1);
         fromList = getIntent().getBooleanExtra(EXTRA_LIST_MODE, false);
         if (queue != null && queue.length > 0 && index >= 0 && index < queue.length) {
-            queueIds = queue;
+            queueRefs = queue;
             queueIndex = index;
             return;
         }
-        queueIds = new long[]{poem.getId()};
+        queueRefs = new String[]{poem.getLookupRef()};
         queueIndex = 0;
         fromList = false;
     }
@@ -286,7 +309,7 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void updateFavoriteIcon() {
-        boolean favorite = repository.isFavorite(poem.getId());
+        boolean favorite = repository.isFavorite(poem);
         MenuItem item = binding.toolbar.getMenu().findItem(R.id.action_favorite);
         if (item != null) {
             item.setIcon(favorite ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
@@ -294,17 +317,37 @@ public class DetailActivity extends AppCompatActivity {
         }
     }
 
-    /** 平仄：1 平 / 0 仄 / 2 中 / 3 平韵 / 4 仄韵 */
+    /**
+     * 平仄的视觉替换。
+     *
+     * <p>服务端给的 {@code strain} 已经解成可读符号，形如「仄仄平○仄，仄仄○平仄。」
+     * （码表见后端 {@code internal/service/poem_service.go} 的 {@code strainSymbols}：
+     * 仄 / 平 / ，/ 。/ ○ 可平可仄 / ？ 未知 / 通）。这里只把它换成更紧凑的记号：
+     * 平 → —、仄 → ｜、可平可仄 → ○、未知 → ◇，标点与其余字符原样保留。
+     *
+     * <p><b>为什么同时保留数字分支：</b>更早的一版约定是「1 平 / 0 仄 / 3 平韵 / 4 仄韵」
+     * 的数字编码，设备上残留的旧本地库 {@code poetry.db} 里可能还有那种格式；
+     * 两边都认一下，免得换库时又整行渲染成 ◇。
+     *
+     * <p>⚠️ 2026-10-09 修正：原来只认数字编码，而后端早已改成直接返回解好的符号，
+     * 于是每个字符都落到 {@code default} —— 真机实测平仄行是「◇◇◇◇◇◇…」。
+     */
     @NonNull
     private String prettyStrain(@NonNull String raw) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(raw.length());
         for (int i = 0; i < raw.length(); i++) {
-            switch (raw.charAt(i)) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '平':            // 平
                 case '1':
                     sb.append('—');
                     break;
+                case '仄':            // 仄
                 case '0':
                     sb.append('｜');
+                    break;
+                case '○':            // ○ 可平可仄
+                    sb.append('○');
                     break;
                 case '3':
                     sb.append('◎');
@@ -312,8 +355,12 @@ public class DetailActivity extends AppCompatActivity {
                 case '4':
                     sb.append('●');
                     break;
-                default:
+                case '？':            // ？ 未知（全角）
+                case '?':                 // 未知（半角，码表 7~15）
                     sb.append('◇');
+                    break;
+                default:                  // ，。通 等原样保留
+                    sb.append(c);
                     break;
             }
         }
@@ -431,8 +478,8 @@ public class DetailActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
             return;
         }
-        if (target < queueIds.length) {
-            loadAndShow(queueIds[target], target, direction, playAfter);
+        if (target < queueRefs.length) {
+            loadAndShow(queueRefs[target], target, direction, playAfter);
             return;
         }
         if (fromList) {
@@ -442,14 +489,14 @@ public class DetailActivity extends AppCompatActivity {
         // 随机模式：往后没有现成的，现抽一首接在链条末尾，于是它也能往回翻
         switching = true;
         final int seq = ++switchSeq;
-        repository.randomPoem(poem.getId(), new Callback<Poem>() {
+        repository.randomPoem(poem.getLookupRef(), new Callback<Poem>() {
             @Override
             public void onData(@NonNull Poem data) {
                 if (seq != switchSeq) {
                     return;
                 }
-                long[] grown = Arrays.copyOf(queueIds, queueIds.length + 1);
-                grown[queueIds.length] = data.getId();
+                String[] grown = Arrays.copyOf(queueRefs, queueRefs.length + 1);
+                grown[queueRefs.length] = data.getLookupRef();
                 applyPoem(data, grown, grown.length - 1, direction, playAfter);
             }
 
@@ -465,17 +512,17 @@ public class DetailActivity extends AppCompatActivity {
         });
     }
 
-    /** 按 id 取回完整内容再显示（队列里存的是 id，不是 Poem） */
-    private void loadAndShow(long id, int index, int direction, boolean playAfter) {
+    /** 按引用取回完整内容再显示（队列里存的是引用，不是 Poem） */
+    private void loadAndShow(@NonNull String ref, int index, int direction, boolean playAfter) {
         switching = true;
         final int seq = ++switchSeq;
-        repository.poemById(id, new Callback<Poem>() {
+        repository.poemByRef(ref, new Callback<Poem>() {
             @Override
             public void onData(@NonNull Poem data) {
                 if (seq != switchSeq) {
                     return;
                 }
-                applyPoem(data, queueIds, index, direction, playAfter);
+                applyPoem(data, queueRefs, index, direction, playAfter);
             }
 
             @Override
@@ -493,14 +540,15 @@ public class DetailActivity extends AppCompatActivity {
     /**
      * 换到这一首：只重刷与内容有关的部分。
      *
-     * <p>{@code bindTabs()} 绝不能重跑（页签会变成 6 个），{@code bindTools()} /
+     * <p>{@code bindTabs()} 绝不能重跑（那是「建表」，会把三个基础页签再建一遍），
+     * 页签的增删走 {@link #syncOptionalTabs()}；{@code bindTools()} /
      * {@code bindPlayer()} 只设监听和与诗无关的开关态，也只在 {@code onCreate} 里跑一次。
      *
      * <p>顺手把新状态写回 Intent：本页没有声明 {@code configChanges}，
      * 转屏、切夜间模式、换皮肤都会带着同一个 Intent 重走 {@code onCreate}，
      * 不回写就会莫名其妙跳回进来时那一首。
      */
-    private void applyPoem(@NonNull Poem next, long[] queue, int index, int direction,
+    private void applyPoem(@NonNull Poem next, @NonNull String[] queue, int index, int direction,
                            boolean playAfter) {
         switching = false;
         if (isFinishing() || isDestroyed()) {
@@ -509,13 +557,13 @@ public class DetailActivity extends AppCompatActivity {
         }
         // 队列一并收下：随机模式下它是「这次新抽的那首接在末尾」的新数组，
         // 不写回字段的话队列永远只有进来时那一首，下滑会一步跳回入口那首
-        queueIds = queue;
+        queueRefs = queue;
         queueIndex = index;
         stopPlay();
         poem = next;
 
         getIntent().putExtra(EXTRA_POEM, poem);
-        getIntent().putExtra(EXTRA_QUEUE, queueIds);
+        getIntent().putExtra(EXTRA_QUEUE, queueRefs);
         getIntent().putExtra(EXTRA_INDEX, queueIndex);
         getIntent().putExtra(EXTRA_LIST_MODE, fromList);
 
@@ -524,7 +572,8 @@ public class DetailActivity extends AppCompatActivity {
         bindHeader();
         updateBodyView();
         updateNowPlaying();
-        showContent(binding.contentTabs.getSelectedTabPosition());
+        // 页签跟着这首的内容变（有背景/简介才多出那两个），内容也在里面一并刷新
+        syncOptionalTabs();
         // 进度条要归零：不归零会留着上一首读到一半的位置
         binding.playProgress.setProgress(0);
         binding.detailScroll.scrollTo(0, 0);
@@ -544,6 +593,54 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     // ---------------------------------------------------------------- 正文
+
+    /**
+     * 进入本页时补拉一次完整内容。
+     *
+     * <p>列表接口给的是 {@code PoemBrief} —— 有 {@code excerpt}、没有 {@code body}
+     * （见后端 {@code PoemBrief} 的注释，刻意的，免得列表把全文都拖下来）。
+     * 而本页要渲染正文 / 译文 / 注释 / 赏析，所以从列表点进来这条路径必须再取一次。
+     * {@code JsonMapper} 的类注释把这件事写成「详情页靠 {@code getBody().isEmpty()}
+     * 判断要不要补一次详情请求」—— 这个方法就是那句话的实现。
+     *
+     * <p>发现页 / 随机 / 朗读历史进来时正文已经带着，直接跳过，不多发请求。
+     *
+     * <p>刻意不调 {@link #applyPoem}：它里面有 {@code stopPlay()}，会把「进入自动朗读」
+     * 刚起来的那次朗读掐断；还会重置滚动位置、播翻页动画 —— 首次进入都不需要。
+     */
+    private void loadFullDetailIfNeeded() {
+        if (!poem.getBody().isEmpty()) {
+            return;
+        }
+        final String ref = poem.getLookupRef();
+        repository.poemByRef(ref, new Callback<Poem>() {
+            @Override
+            public void onData(@NonNull Poem data) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                // 取数期间可能已翻到别首（或转屏重建），只认当前这首的结果
+                if (!ref.equals(poem.getLookupRef())) {
+                    return;
+                }
+                poem = data;
+                getIntent().putExtra(EXTRA_POEM, poem);
+                bindHeader();
+                updateBodyView();
+                syncOptionalTabs();
+                // syncOptionalTabs 在页签数量没变时会提前 return、也就不刷内容，
+                // 所以这里补一次当前页签 —— 否则译文区会一直停着补拉前的占位文案
+                showContent(binding.contentTabs.getSelectedTabPosition());
+                updateNowPlaying();
+            }
+
+            @Override
+            public void onError(@Nullable Throwable error) {
+                // 补不到就维持 brief 渲染；正文区给个明确提示，别留一片空白
+                binding.poemBody.setText(R.string.detail_no_content);
+            }
+        });
+    }
 
     private void bindBody() {
         updateBodyView();
@@ -687,15 +784,24 @@ public class DetailActivity extends AppCompatActivity {
         view.setAlpha(selected ? 1f : 0.55f);
     }
 
-    // ---------------------------------------------------------------- 译文 / 注释 / 赏析
+    // ------------------------------------------------- 译文 / 注释 / 赏析 / 创作背景 / 简介
+
+    /** 详情页内容页签的种类：下标会变，种类不会 */
+    private enum ContentTab {
+        TRANSLATION, NOTES, APPRECIATION, BACKGROUND, INTRODUCTION
+    }
 
     private void bindTabs() {
-        binding.contentTabs.addTab(binding.contentTabs.newTab().setText(R.string.tab_translation));
-        binding.contentTabs.addTab(binding.contentTabs.newTab().setText(R.string.tab_annotation));
-        binding.contentTabs.addTab(binding.contentTabs.newTab().setText(R.string.tab_appreciation));
+        contentTabKinds.clear();
+        appendTab(ContentTab.TRANSLATION, R.string.tab_translation);
+        appendTab(ContentTab.NOTES, R.string.tab_annotation);
+        appendTab(ContentTab.APPRECIATION, R.string.tab_appreciation);
         binding.contentTabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
+                if (suppressTabCallback) {
+                    return;
+                }
                 showContent(tab.getPosition());
             }
 
@@ -706,38 +812,130 @@ public class DetailActivity extends AppCompatActivity {
 
             @Override
             public void onTabReselected(TabLayout.Tab tab) {
+                if (suppressTabCallback) {
+                    return;
+                }
                 showContent(tab.getPosition());
             }
         });
+        // 进来这一首要是带背景/简介，页签在这步就补齐；不带就还是 3 个
+        syncOptionalTabs();
         showContent(0);
     }
 
+    /**
+     * 追加一个页签。
+     *
+     * <p>先记种类再 {@code addTab}：往空表里加第一个页签时 TabLayout 会顺手把它选中并回调
+     * {@code showContent}，那时种类清单里必须已经有对应的那一项。
+     */
+    private void appendTab(@NonNull ContentTab kind, int titleRes) {
+        contentTabKinds.add(kind);
+        binding.contentTabs.addTab(binding.contentTabs.newTab().setText(titleRes));
+    }
+
+    /**
+     * 按当前这首的内容增删「创作背景 / 简介」两个可选页签。
+     *
+     * <p>两个方向都要能：{@code poem_extras} 的富文本是逐首可选的，有背景没简介、有简介没背景
+     * 都很常见，所以「换一首」和左右滑页之后页签数量得跟着变。
+     *
+     * <p>只从尾部删——前三个的位置不能动（见 {@link #BASE_TAB_COUNT}）。
+     * 重建期间压住回调，最后按「种类」把用户原先看的那一页选回来；
+     * 原先那一页没了（从有背景的一首翻到没有的），退回第一个页签。
+     */
+    private void syncOptionalTabs() {
+        boolean wantBackground = !poem.getCreativeBackground().isEmpty();
+        boolean wantIntroduction = !poem.getIntroduction().isEmpty();
+        boolean hasBackground = contentTabKinds.contains(ContentTab.BACKGROUND);
+        boolean hasIntroduction = contentTabKinds.contains(ContentTab.INTRODUCTION);
+        if (wantBackground == hasBackground && wantIntroduction == hasIntroduction) {
+            // 页签没变就别动：白重建一次会平白刷掉用户正在看的那一页
+            return;
+        }
+
+        ContentTab selected = selectedKind();
+        suppressTabCallback = true;
+        try {
+            while (contentTabKinds.size() > BASE_TAB_COUNT) {
+                contentTabKinds.remove(contentTabKinds.size() - 1);
+                binding.contentTabs.removeTabAt(contentTabKinds.size());
+            }
+            if (wantBackground) {
+                appendTab(ContentTab.BACKGROUND, R.string.tab_creative_background);
+            }
+            if (wantIntroduction) {
+                appendTab(ContentTab.INTRODUCTION, R.string.tab_introduction);
+            }
+        } finally {
+            suppressTabCallback = false;
+        }
+
+        int index = selected == null ? 0 : contentTabKinds.indexOf(selected);
+        if (index < 0) {
+            index = 0;
+        }
+        TabLayout.Tab tab = binding.contentTabs.getTabAt(index);
+        if (tab != null) {
+            // 已经选中的页签 select() 不会再回调（只有 reselected），所以下面无条件再刷一次
+            tab.select();
+        }
+        showContent(index);
+    }
+
+    /** 当前选中的页签种类；还没选中（或下标越界）时为 null */
+    @Nullable
+    private ContentTab selectedKind() {
+        int position = binding.contentTabs.getSelectedTabPosition();
+        return position >= 0 && position < contentTabKinds.size()
+                ? contentTabKinds.get(position) : null;
+    }
+
     private void showContent(int position) {
-        switch (position) {
-            case 0:
-                binding.contentText.setText(poem.getTranslation().isEmpty()
-                        ? getString(R.string.remote_pending) : poem.getTranslation());
+        if (position < 0 || position >= contentTabKinds.size()) {
+            return;
+        }
+        switch (contentTabKinds.get(position)) {
+            case NOTES:
+                showNotes();
                 break;
-            case 1:
-                List<String> notes = poem.getNoteList();
-                if (notes.isEmpty()) {
-                    binding.contentText.setText(R.string.detail_no_notes);
-                } else {
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < notes.size(); i++) {
-                        sb.append(i + 1).append(". ").append(notes.get(i));
-                        if (i < notes.size() - 1) {
-                            sb.append("\n\n");
-                        }
-                    }
-                    binding.contentText.setText(sb.toString());
-                }
+            case APPRECIATION:
+                setContentText(poem.getAppreciation());
                 break;
+            case BACKGROUND:
+                setContentText(poem.getCreativeBackground());
+                break;
+            case INTRODUCTION:
+                setContentText(poem.getIntroduction());
+                break;
+            case TRANSLATION:
             default:
-                binding.contentText.setText(poem.getAppreciation().isEmpty()
-                        ? getString(R.string.remote_pending) : poem.getAppreciation());
+                setContentText(poem.getTranslation());
                 break;
         }
+    }
+
+    /** 注释：一条一行，前面缀上序号 */
+    private void showNotes() {
+        List<String> notes = poem.getNoteList();
+        if (notes.isEmpty()) {
+            binding.contentText.setText(R.string.detail_no_notes);
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < notes.size(); i++) {
+            sb.append(i + 1).append(". ").append(notes.get(i));
+            if (i < notes.size() - 1) {
+                sb.append("\n\n");
+            }
+        }
+        binding.contentText.setText(sb.toString());
+    }
+
+    /** 富文本为空时统一用「内容待下载」占位 */
+    private void setContentText(String text) {
+        binding.contentText.setText(text == null || text.isEmpty()
+                ? getString(R.string.detail_no_content) : text);
     }
 
     // ---------------------------------------------------------------- 朗读
@@ -806,7 +1004,7 @@ public class DetailActivity extends AppCompatActivity {
             updatePlayIcon();
             stopProgress();
             binding.playProgress.setProgress(100);
-            store.setProgress(poem.getId(), 100);
+            store.setProgress(poem, 100);
             scheduleNext();
         }
 
@@ -998,7 +1196,7 @@ public class DetailActivity extends AppCompatActivity {
                     percent = 100;
                 }
                 binding.playProgress.setProgress(percent);
-                store.setProgress(poem.getId(), percent);
+                store.setProgress(poem, percent);
                 if (percent < 100 && playing) {
                     handler.postDelayed(this, 200);
                 }

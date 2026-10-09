@@ -28,6 +28,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -77,8 +78,12 @@ public final class UserStore {
 
     /** 数据文件名 */
     public static final String FILE_NAME = "user_data.json";
-    /** 当前数据结构版本 */
-    private static final int DATA_VERSION = 2;
+    /**
+     * 当前数据结构版本。
+     * <p>2 → 3：收藏 / 历史 / 阅读进度 / 最近阅读时间的身份从「数字 id」换成
+     * {@link Poem#identityKey()}，见 {@link #migrateIdentityLocked()}。
+     */
+    private static final int DATA_VERSION = 3;
     /** 旧版 SharedPreferences 名，仅用于迁移 */
     private static final String LEGACY_PREF = "poetry_user";
 
@@ -235,8 +240,10 @@ public final class UserStore {
     /** 保证各分区存在，避免调用方到处判空 */
     private void ensureSections() {
         synchronized (lock) {
-                for (String name : new String[]{"profile", "checkin", "stats",
-                        "prefs", "readAt", "progress", "session", "daily", "member"}) {
+            // 必须在下面把 version 写成 DATA_VERSION 之前读旧值：它就是「要不要迁移」的依据
+            int oldVersion = root.optInt("version", 0);
+            for (String name : new String[]{"profile", "checkin", "stats",
+                    "prefs", "readAt", "progress", "session", "daily", "member"}) {
                 if (root.optJSONObject(name) == null) {
                     try {
                         root.put(name, new JSONObject());
@@ -254,12 +261,82 @@ public final class UserStore {
                     }
                 }
             }
+            if (oldVersion < 3) {
+                migrateIdentityLocked();
+            }
             try {
                 root.put("version", DATA_VERSION);
             } catch (JSONException ignored) {
                 // ignore
             }
         }
+    }
+
+    /**
+     * v2 → v3：把 {@code readAt} / {@code progress} 的键从「数字 id」换成 {@link Poem#identityKey()}。
+     * <p>
+     * 收藏和历史的快照里本来就带 {@code uid}，所以这两张表不用改；这里只是借它们建一张
+     * 「id → uid」表，再把那两张「id → 值」的映射就地改名——{@code UserStore} 拿不到数据库，
+     * 也正因如此才要用本机快照来换算。快照里查不到的旧键改写成 {@code "id:" + 数字}，
+     * 这样示例数据（没有 uid）时期的条目在新规则下仍然可达，不会被静默丢掉。
+     * <p>
+     * 幂等：只由 {@code ensureSections()} 在 {@code version < 3} 时调用一次，
+     * 迁移结果随后由构造函数的 {@code save()} 落盘。
+     */
+    private void migrateIdentityLocked() {
+        Map<Long, String> uidOf = new HashMap<>();
+        for (String section : new String[]{"favorites", "history"}) {
+            JSONArray arr = root.optJSONArray(section);
+            for (int i = 0; arr != null && i < arr.length(); i++) {
+                JSONObject item = arr.optJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                String uid = item.optString("uid");
+                if (!uid.isEmpty()) {
+                    uidOf.put(item.optLong("id"), uid);
+                }
+            }
+        }
+        for (String section : new String[]{"readAt", "progress"}) {
+            JSONObject map = root.optJSONObject(section);
+            if (map == null || map.length() == 0) {
+                continue;
+            }
+            JSONObject rebuilt = new JSONObject();
+            for (Iterator<String> it = map.keys(); it.hasNext(); ) {
+                String key = it.next();
+                Object value = map.opt(key);
+                String newKey = key;
+                if (isDigits(key)) {
+                    long id = Long.parseLong(key);
+                    String uid = uidOf.get(id);
+                    newKey = uid != null ? uid : "id:" + id;
+                }
+                try {
+                    rebuilt.put(newKey, value);
+                } catch (JSONException ignored) {
+                    // ignore
+                }
+            }
+            try {
+                root.put(section, rebuilt);
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+    }
+
+    private static boolean isDigits(@NonNull String s) {
+        if (s.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) < '0' || s.charAt(i) > '9') {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -370,7 +447,10 @@ public final class UserStore {
         }
         synchronized (lock) {
             try {
-                root.put("version", DATA_VERSION);
+                // 这里只能标 2，不能标 DATA_VERSION：SharedPreferences 里的 readAt/progress
+                // 还是「数字 id → 值」的老键，标成当前版本会让下面 ensureSections() 的
+                // 迁移门槛判成「已迁移」，老键就永远换不过来了。
+                root.put("version", 2);
 
                 root.put("favorites", parseArray(pref.getString(L_FAVORITES, "[]")));
                 root.put("history", parseArray(pref.getString(L_HISTORY, "[]")));
@@ -507,9 +587,11 @@ public final class UserStore {
         return readPoems("favorites");
     }
 
-    public boolean isFavorite(long poemId) {
-        for (Poem poem : getFavorites()) {
-            if (poem.getId() == poemId) {
+    /** 是否已收藏。按 {@link Poem#identityKey()} 认，不认 id——换库后 id 会变 */
+    public boolean isFavorite(@NonNull Poem poem) {
+        String key = poem.identityKey();
+        for (Poem item : getFavorites()) {
+            if (item.identityKey().equals(key)) {
                 return true;
             }
         }
@@ -520,7 +602,7 @@ public final class UserStore {
     public boolean toggleFavorite(@NonNull Poem poem) {
         List<Poem> list = getFavorites();
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).getId() == poem.getId()) {
+            if (list.get(i).identityKey().equals(poem.identityKey())) {
                 list.remove(i);
                 writePoems("favorites", list);
                 recordUnfavoriteLocked(poem);
@@ -536,11 +618,12 @@ public final class UserStore {
         return true;
     }
 
-    public void removeFavorite(long poemId) {
+    public void removeFavorite(@NonNull Poem poem) {
         List<Poem> list = getFavorites();
+        String key = poem.identityKey();
         Poem target = null;
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).getId() == poemId) {
+            if (list.get(i).identityKey().equals(key)) {
                 target = list.get(i);
                 list.remove(i);
                 break;
@@ -576,8 +659,9 @@ public final class UserStore {
     /** 记录一次阅读，最多保留 30 条 */
     public void recordHistory(@NonNull Poem poem) {
         List<Poem> list = getHistory();
+        String key = poem.identityKey();
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).getId() == poem.getId()) {
+            if (list.get(i).identityKey().equals(key)) {
                 list.remove(i);
                 break;
             }
@@ -587,7 +671,7 @@ public final class UserStore {
             list.remove(list.size() - 1);
         }
         writePoems("history", list);
-        setReadAt(poem.getId(), System.currentTimeMillis());
+        setReadAt(key, System.currentTimeMillis());
         synchronized (lock) {
             JSONObject stats = section("stats");
             try {
@@ -600,16 +684,16 @@ public final class UserStore {
     }
 
     /** 单条历史的时间戳，用于「今天 / 更早」分组；没有记录时返回 0 */
-    public long getReadAt(long poemId) {
+    public long getReadAt(@NonNull Poem poem) {
         synchronized (lock) {
-            return section("readAt").optLong(String.valueOf(poemId), 0L);
+            return section("readAt").optLong(poem.identityKey(), 0L);
         }
     }
 
-    private void setReadAt(long poemId, long time) {
+    private void setReadAt(@NonNull String key, long time) {
         synchronized (lock) {
             try {
-                section("readAt").put(String.valueOf(poemId), time);
+                section("readAt").put(key, time);
             } catch (JSONException ignored) {
                 // ignore
             }
@@ -617,11 +701,12 @@ public final class UserStore {
     }
 
     /** 删掉一条历史（不影响朗读次数统计） */
-    public boolean removeHistory(long poemId) {
+    public boolean removeHistory(@NonNull Poem poem) {
         List<Poem> list = getHistory();
+        String key = poem.identityKey();
         boolean removed = false;
         for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).getId() == poemId) {
+            if (list.get(i).identityKey().equals(key)) {
                 list.remove(i);
                 removed = true;
                 break;
@@ -644,16 +729,16 @@ public final class UserStore {
         save();
     }
 
-    public int getProgress(long poemId) {
+    public int getProgress(@NonNull Poem poem) {
         synchronized (lock) {
-            return section("progress").optInt(String.valueOf(poemId), 0);
+            return section("progress").optInt(poem.identityKey(), 0);
         }
     }
 
-    public void setProgress(long poemId, int percent) {
+    public void setProgress(@NonNull Poem poem, int percent) {
         synchronized (lock) {
             try {
-                section("progress").put(String.valueOf(poemId), percent);
+                section("progress").put(poem.identityKey(), percent);
             } catch (JSONException ignored) {
                 // ignore
             }
@@ -1207,6 +1292,63 @@ public final class UserStore {
         return session().optLong("loginAt", 0L);
     }
 
+    // ---- 后端凭证（JWT）----
+
+    /**
+     * 后端签发的 JWT。空串 = 没有可用凭证（匿名，或这个账号走的是纯本地登录）。
+     *
+     * <p>刻意和上面那组「本地身份」放在同一个 session 分区里：登录态本来就是一份东西，
+     * 拆成两处存储迟早会出现「isLoggedIn() 为真、但 token 早就失效」这种半登录状态，
+     * 而那种状态在界面上无法向用户解释。
+     */
+    @NonNull
+    public String getAuthToken() {
+        return session().optString("token", "");
+    }
+
+    /** 后端 user 表的主键。注意与 {@link #getLoginUid()}（微信 openId / mock-id）不是一回事。 */
+    public long getAuthUserId() {
+        return session().optLong("userId", 0L);
+    }
+
+    /** 票据过期时间（毫秒时间戳，0 = 未知） */
+    public long getAuthExpireAt() {
+        return session().optLong("expireAt", 0L);
+    }
+
+    /**
+     * 存下一次后端登录的凭证。
+     *
+     * <p>**不碰** {@code loggedIn} / {@code provider} 等字段：那些描述的是「本地身份」，
+     * 由 {@link #setLogin} 负责；这里只管把票据收好，供 ApiClient 拼 Authorization 头。
+     */
+    public void setAuthToken(@Nullable String token, long userId, long expireAt) {
+        synchronized (lock) {
+            try {
+                JSONObject s = session();
+                s.put("token", token == null ? "" : token);
+                s.put("userId", userId);
+                s.put("expireAt", expireAt);
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+        save();
+    }
+
+    /**
+     * 票据是否还可用。留 60 秒余量：卡在过期边界上发出请求，
+     * 服务端判过期、客户端判有效，用户会看到一次莫名其妙的「登录已失效」。
+     */
+    public boolean isAuthTokenValid() {
+        String token = getAuthToken();
+        if (token.isEmpty()) {
+            return false;
+        }
+        long expireAt = getAuthExpireAt();
+        return expireAt <= 0 || System.currentTimeMillis() < expireAt - 60_000L;
+    }
+
     /**
      * 记录一次登录。个人资料里的昵称还是空的就把登录昵称带过去，
      * 登录完「我的」页立刻是可用的样子，而不是一片空白。
@@ -1236,6 +1378,11 @@ public final class UserStore {
                 s.put("uid", "");
                 s.put("nickname", "");
                 s.put("loginAt", 0L);
+                // 票据必须一起清掉：留着的话下一个在这台设备上登录的人
+                // 会顶着上一个人的身份往服务端写收藏。
+                s.put("token", "");
+                s.put("userId", 0L);
+                s.put("expireAt", 0L);
             } catch (JSONException ignored) {
                 // ignore
             }
@@ -1468,6 +1615,7 @@ public final class UserStore {
         JSONObject json = new JSONObject();
         try {
             json.put("id", poem.getId());
+            json.put("uid", poem.getUid());
             json.put("authorId", poem.getAuthorId());
             json.put("title", poem.getTitle());
             json.put("rhythmic", poem.getRhythmic());
@@ -1479,6 +1627,8 @@ public final class UserStore {
             json.put("notes", poem.getNotes());
             json.put("translation", poem.getTranslation());
             json.put("appreciation", poem.getAppreciation());
+            json.put("introduction", poem.getIntroduction());
+            json.put("creativeBackground", poem.getCreativeBackground());
             json.put("score", poem.getScore());
             json.put("nChar", poem.getNChar());
             json.put("favoriteAt", poem.getFavoriteAt());
@@ -1496,6 +1646,8 @@ public final class UserStore {
         try {
             Poem poem = new Poem();
             poem.setId(json.optLong("id"));
+            // 这一批是后加的：optXxx 拿不到就给默认值，所以升级前存下的收藏/历史快照照样能读。
+            poem.setUid(json.optString("uid"));
             poem.setAuthorId(json.optLong("authorId"));
             poem.setTitle(json.optString("title"));
             poem.setRhythmic(json.optString("rhythmic"));
@@ -1507,6 +1659,8 @@ public final class UserStore {
             poem.setNotes(json.optString("notes"));
             poem.setTranslation(json.optString("translation"));
             poem.setAppreciation(json.optString("appreciation"));
+            poem.setIntroduction(json.optString("introduction"));
+            poem.setCreativeBackground(json.optString("creativeBackground"));
             poem.setScore(json.optInt("score"));
             poem.setNChar(json.optInt("nChar"));
             poem.setFavoriteAt(json.optLong("favoriteAt"));

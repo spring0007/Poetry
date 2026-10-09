@@ -144,7 +144,8 @@ public class PoemListActivity extends AppCompatActivity {
                 repository.listByTheme(value, 60, callback);
                 break;
             case MODE_AUTHOR:
-                repository.listByAuthor(Long.parseLong(value), 60, callback);
+                // value 是作者引用（uid 优先）而不是裸数字 id，不能再 parseLong
+                repository.listByAuthor(value, 60, callback);
                 break;
             case MODE_SEARCH:
                 repository.search(value, 60, callback);

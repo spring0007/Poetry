@@ -167,17 +167,18 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     private void bindLibrary() {
-        binding.aboutSource.setText(getString(R.string.data_source_label,
-                repository.sourceLabel()));
-        // 本地库是否就位要连一次数据库，放到 IO 线程再回主线程
+        refreshLibrary();
+        // 本地库是否就位要连一次数据库，放到 IO 线程再回主线程。
+        // 连上之后 {@code sourceLabel()} 给出的说法会更准（从「内置示例数据」
+        // 变成「本地诗库 poetry.db」），所以这里只负责再刷一遍，不自己拼文案。
         repository.localState(new Callback<Boolean>() {
             @Override
             public void onData(@NonNull Boolean localReady) {
                 if (binding == null) {
+                    // Activity 已经销毁：binding 被置空，刷下去就是 NPE
                     return;
                 }
-                binding.aboutSource.setText(getString(R.string.data_source_label,
-                        localReady ? "本地诗库 poetry.db" : "内置示例数据"));
+                refreshLibrary();
             }
 
             @Override
@@ -185,6 +186,20 @@ public class AboutActivity extends AppCompatActivity {
                 // 保持仓库给出的默认文案
             }
         });
+    }
+
+    /**
+     * 「数据来源」+「服务端」两行。
+     *
+     * <p>分开写是因为它们回答的是两个问题：内容这次是从哪儿来的（可能回退了本地），
+     * 以及后端链路本身通不通（熔断、未配置地址、无网络都会体现在这里）。
+     * 合成一行会让「正在用本地库」和「后端挂了」看起来像同一件事。
+     */
+    private void refreshLibrary() {
+        binding.aboutSource.setText(getString(R.string.data_source_label,
+                repository.sourceLabel()));
+        binding.aboutApi.setText(getString(R.string.about_api_label,
+                repository.apiStatusLabel()));
     }
 
     /**

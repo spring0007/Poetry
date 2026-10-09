@@ -33,6 +33,8 @@ import java.util.List;
 public class AuthorDetailActivity extends AppCompatActivity {
 
     private static final String EXTRA_ID = "extra_author_id";
+    /** 作者的内容派生稳定键。有没有它决定了后面按 uid 还是按数字 id 去查 */
+    private static final String EXTRA_UID = "extra_author_uid";
     private static final String EXTRA_NAME = "extra_author_name";
     private static final String EXTRA_DYNASTY = "extra_author_dynasty";
     private static final String EXTRA_DESC = "extra_author_desc";
@@ -47,10 +49,13 @@ public class AuthorDetailActivity extends AppCompatActivity {
 
     private Author author;
     private DbStatusListener readyWatcher;
+    /** 篇数兜底已经查到真实值：不必再随就绪广播重查 */
+    private boolean countLoaded;
 
     public static void open(@NonNull Context context, @NonNull Author author) {
         Intent intent = new Intent(context, AuthorDetailActivity.class);
         intent.putExtra(EXTRA_ID, author.getId());
+        intent.putExtra(EXTRA_UID, author.getUid());
         intent.putExtra(EXTRA_NAME, author.getName());
         intent.putExtra(EXTRA_DYNASTY, author.getDynasty());
         intent.putExtra(EXTRA_DESC, author.getDesc());
@@ -73,20 +78,60 @@ public class AuthorDetailActivity extends AppCompatActivity {
 
         bindHeader();
         bindWorks();
+        refreshPoemCount();
 
         readyWatcher = new DbStatusListener.ReadyWatcher() {
             @Override
             protected void onReadyChanged(boolean ready, @NonNull DbStatus status) {
+                // 首次进来时库可能还没开完，篇数兜底查询会落空，就绪后再补一次
+                refreshPoemCount();
                 loadWorks();
             }
         };
         repository.addDbStatusListener(readyWatcher);
     }
 
+    /**
+     * 篇数兜底：入口没带篇数（{@code EXTRA_N_POEMS} = 0，比如从列表页按作者筛进来）时，
+     * 补查一次本库的实际首数。
+     *
+     * <p>不能用 {@code authors.n_poems} 兜底——那是**母库**篇数（陆游标着 9416，本库只有 7 首），
+     * 界面上的「存世多少首」必须是现算的 {@code COUNT(*)}。后端同一列同样不可信，
+     * 它给回来的 {@code nPoems} 也是现算的，所以远端与本地两条路都对得上。
+     *
+     * <p>查的是 {@link Author#getLookupRef()}（uid 优先）而不是数字 id：
+     * 后端按 uid 认作者，本地库则要先在 {@code authors} 里换算出 {@code id}。
+     *
+     * <p>查不到（库还没就绪 / 作者确实没有作品）就把标志位留着，
+     * 等 {@code ReadyWatcher} 下一次广播再试；拿到正值才收工，避免反复重刷。
+     */
+    private void refreshPoemCount() {
+        if (countLoaded || author.getNPoems() > 0) {
+            return;
+        }
+        repository.countByAuthor(author.getLookupRef(), new Callback<Integer>() {
+            @Override
+            public void onData(@NonNull Integer n) {
+                if (isFinishing() || isDestroyed() || n <= 0) {
+                    return;
+                }
+                countLoaded = true;
+                author.setNPoems(n);
+                bindHeader();
+            }
+
+            @Override
+            public void onError(@Nullable Throwable error) {
+                // 查不到就维持「0 首」的显示，不打扰用户
+            }
+        });
+    }
+
     @NonNull
     private Author readAuthor(@NonNull Intent intent) {
         Author a = new Author();
         a.setId(intent.getLongExtra(EXTRA_ID, 0L));
+        a.setUid(intent.getStringExtra(EXTRA_UID));
         a.setName(intent.getStringExtra(EXTRA_NAME));
         a.setDynasty(intent.getStringExtra(EXTRA_DYNASTY));
         a.setDesc(intent.getStringExtra(EXTRA_DESC));
@@ -114,7 +159,7 @@ public class AuthorDetailActivity extends AppCompatActivity {
                 getString(R.string.author_view_all, author.getNPoems()));
         binding.worksHeader.sectionMeta.setOnClickListener(v -> PoemListActivity.open(this,
                 author.getName() + " 作品集", PoemListActivity.MODE_AUTHOR,
-                String.valueOf(author.getId())));
+                author.getLookupRef()));
     }
 
     private void bindWorks() {
@@ -139,7 +184,7 @@ public class AuthorDetailActivity extends AppCompatActivity {
 
     private void loadWorks() {
         binding.loadingBar.setVisibility(View.VISIBLE);
-        repository.listByAuthor(author.getId(), WORKS_LIMIT, new Callback<List<Poem>>() {
+        repository.listByAuthor(author.getLookupRef(), WORKS_LIMIT, new Callback<List<Poem>>() {
             @Override
             public void onData(@NonNull List<Poem> poems) {
                 binding.loadingBar.setVisibility(View.GONE);

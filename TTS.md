@@ -1,5 +1,25 @@
 # 语音（朗读）接入说明
 
+> **先读这一段（v10，2026 年补记）。**
+> App 侧的**腾讯云直连已整体撤除**：`QCloudTts`、`libqcloudtts-release.aar` 与
+> `BuildConfig` 里的 `QCLOUD_*` 注入全部删除，`EngineRouter` 现在只挂内置离线引擎
+> `SherpaTts` 一个。
+>
+> **为什么撤**：直连要把主账号的 `SecretId` / `SecretKey` 编译进 APK。`BuildConfig`
+> 的字符串常量是明文躺在 `classes.dex` 里的——实测在旧包里能直接搜出密钥原文，
+> 等于把腾讯云账号交出去。这不是「风险」，是既成事实。
+>
+> **云端音色改由服务端代理**：`POST /v1/tts/synthesize`（凭证留在服务端，
+> 见后端 `internal/tts`）。注意接口形态不一样——它是**按作品引用合成整首**，
+> 而 `SpeechEngine.speak(String text)` 收的是任意文本、还要分块。所以接回来时是
+> **新写一个子引擎挂在 `EngineRouter` 上**，不是把 `QCloudTts` 恢复。
+>
+> 撤除后的可见变化：音色列表里不再出现云端音色（`listVoices()` 只返回内置的那几个），
+> 语音设置页的「会员」开关暂时不解锁任何东西（`Member` 的类注释已同步说明），
+> **内置离线朗读完全不受影响**。APK 由 62.5 MB 降到 59.6 MB。
+> `QCloudRoles` 保留：`voiceId` / `voiceType` 的映射是两端约定，而且历史配置里
+> 存着的 `cloud-*` id 还得靠它认出来给一句说明。
+
 > **先读这一段（v9，2026 年补记）。**
 > 本文下面的 §1–§12 记录的是 **v8 之前**的演进过程，其中 MultiTTS 桥接、Edge 在线、
 > 系统语音兜底等分支**代码里已经全部不存在**了：现在只有一条路——

@@ -90,6 +90,7 @@ public enum PoemKind {
             case "tang-poem":
             case "song-poem":
             case "qing-poetry":
+            case "jinxiandai":
             case "caocao":
             case "shuimo-tangshi":
             case "nalanxingde":
@@ -124,6 +125,10 @@ public enum PoemKind {
 
     /**
      * 该体裁对应的 {@code sources.name} 列表，用于 SQL 的 IN 过滤。
+     *
+     * <p>注意 {@link #FOLK}：它映射的 {@code han-poem} / {@code preqin-poem} 在诗库里
+     * **并不存在**（先秦那一批都归在 shijing / chuci / lunyu 底下），所以「民歌」卡片一直是 0 首。
+     * 这是历史遗留，不是漏配——要改得先决定民歌到底对应哪些 source。
      */
     @NonNull
     public String[] sourceNames() {
@@ -139,9 +144,9 @@ public enum PoemKind {
             case SHI:
             default:
                 return new String[]{
-                        "tang-poem", "song-poem", "qing-poetry", "caocao", "shuimo-tangshi",
-                        "nalanxingde", "shijing", "chuci", "sishuwujing", "lunyu", "mengxue",
-                        "youmengying", "preqin-classic", "unknown-classic"
+                        "tang-poem", "song-poem", "qing-poetry", "jinxiandai", "caocao",
+                        "shuimo-tangshi", "nalanxingde", "shijing", "chuci", "sishuwujing",
+                        "lunyu", "mengxue", "youmengying", "preqin-classic", "unknown-classic"
                 };
         }
     }

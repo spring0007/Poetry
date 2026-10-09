@@ -14,16 +14,21 @@ import com.example.poetry.R;
  * 固定 id，改名反而让用户对不上号。音色 id 见
  * <a href="https://cloud.tencent.com/document/product/1073/92668">官方音色列表</a>。
  * <p>
- * {@code voiceType} 即腾讯的「音色 ID」（如 {@code 101001}），原样传给
- * {@link QCloudTts}。{@code 101xxx} 是基础/精品音色，{@code 501xxx} 是大模型音色
- * （更自然、单价更高），用一个 {@code premium} 标记区分，界面上可以加角标提示。
+ * {@code voiceType} 即腾讯的「音色 ID」（如 {@code 101001}），原样传给服务端。
+ * {@code 101xxx} 是基础/精品音色，{@code 501xxx} 是大模型音色（更自然、单价更高），
+ * 用一个 {@code premium} 标记区分，界面上可以加角标提示。
+ * <p>
+ * <b>眼下这张表暂时用不上</b>：App 侧的腾讯云直连已撤掉（原因见
+ * {@link EngineRouter} 的类注释），云端音色改由后端代理提供。留着这个类是因为
+ * {@code voiceId} / {@code voiceType} 的映射规则是服务端与 App 的**共同约定**，
+ * 而且「用户上次选的云端音色」这种历史数据还要靠 {@link #isCloudId} 认出来给一句说明。
  */
 public final class QCloudRoles {
 
     /** 一个腾讯云在线发音人。 */
     public static final class Role {
 
-        /** 腾讯音色 ID，原样传给 {@code TtsController.setOnlineVoiceType()}。 */
+        /** 腾讯音色 ID，原样交给服务端（{@code POST /v1/tts/synthesize} 的 {@code voiceId}）。 */
         public final int voiceType;
         @StringRes
         public final int nameRes;

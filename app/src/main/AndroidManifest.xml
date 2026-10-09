@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 下载诗库；以及腾讯云在线语音合成（见 media.QCloudTts） -->
+    <!-- 访问内容接口、下载诗库、播放服务端合成的音频 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--

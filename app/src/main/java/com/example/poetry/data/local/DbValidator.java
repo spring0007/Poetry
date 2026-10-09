@@ -29,9 +29,16 @@ import java.util.Set;
  */
 public final class DbValidator {
 
-    /** 缺了任何一张，这个库都不是本 App 的库 */
+    /**
+     * 缺了任何一张，这个库都不是本 App 的库。
+     *
+     * <p>{@code poem_extras} 是 schema 3.3 才有的：3.0 的老库富文本直接写在
+     * {@code poems.notes} 列里，主版本号同样是 3，光靠 {@code schemaCompatible()} 拦不住。
+     * 而老库对本 App 是**致命的**——所有查询都会因为缺列而静默返回空列表。
+     * 所以这件事必须在安装前用表清单挡住。
+     */
     private static final String[] REQUIRED_TABLES = {
-            "poems", "authors", "rhythmics", "sources", "meta"
+            "poems", "authors", "rhythmics", "sources", "poem_extras", "meta"
     };
 
     private DbValidator() {
