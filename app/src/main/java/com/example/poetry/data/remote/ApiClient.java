@@ -197,7 +197,7 @@ public final class ApiClient {
             // 401：票据过期。手里还有 token 的话先用它换张新的，再把这个请求原样重放一次 ——
             // 用户正读到一半，不该因为一次过期就被弹回登录页。
             // 刷新不成功才落到下面按 401 抛，由上层引导重新登录。
-            if (status == 401 && allowRefresh && refreshToken()) {
+            if (status == 401 && allowRefresh && refreshSession()) {
                 conn.disconnect();
                 return execute(method, endpoint, query, jsonBody, false);
             }
@@ -319,6 +319,11 @@ public final class ApiClient {
     /**
      * 用当前 token 换一张新票（{@code POST /v1/auth/refresh}），成功则写回 {@link UserStore}。
      *
+     * <p>两个调用方共用这一条路：{@link #execute} 撞到 401 时自动续签重放，
+     * 以及「我的」页用户主动点的「延长登录」。合成一条实现是有意的 ——
+     * 曾经这里私有、那边又自己发了一遍 POST 且把新票丢掉，于是「延长登录」看着有反应、
+     * 实际什么也没延长。
+     *
      * <p>刻意**不走 {@link #execute}**：那条路径会再次触发「401 → 刷新」的递归，
      * 也会把这次探路计入熔断账本。这里要的是一个安静的单次询问 ——
      * 失败就返回 false，由调用方按普通 401 处理（引导重新登录）。
@@ -326,7 +331,7 @@ public final class ApiClient {
      * <p>续签只延长会话，**不改变本地身份**：{@code loggedIn} / {@code provider} 那些字段
      * 描述的是「用户是谁」，与票据无关，所以这里只调 {@code setAuthToken}。
      */
-    private boolean refreshToken() {
+    public boolean refreshSession() {
         HttpURLConnection conn = null;
         try {
             UserStore store = UserStore.get(appContext);

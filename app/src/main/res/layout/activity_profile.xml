@@ -144,6 +144,53 @@
                     android:textAppearance="@style/TextAppearance.Poetry.Body" />
             </LinearLayout>
 
+            <!-- 账号：登录方式 / 绑定手机 / uid / 注册时间 / 会员状态 + 两个动作。
+                 行复用 view_settings_row，与「我的」页的更多区保持一致。 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:background="@drawable/bg_card_lg"
+                android:orientation="vertical"
+                android:paddingTop="@dimen/space_4">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="@dimen/space_4"
+                    android:paddingEnd="@dimen/space_4"
+                    android:text="@string/profile_account"
+                    android:textAppearance="@style/TextAppearance.Poetry.CardTitle" />
+
+                <include
+                    android:id="@+id/rowAccountType"
+                    layout="@layout/view_settings_row" />
+
+                <include
+                    android:id="@+id/rowAccountPhone"
+                    layout="@layout/view_settings_row" />
+
+                <include
+                    android:id="@+id/rowAccountUid"
+                    layout="@layout/view_settings_row" />
+
+                <include
+                    android:id="@+id/rowAccountRegister"
+                    layout="@layout/view_settings_row" />
+
+                <include
+                    android:id="@+id/rowAccountMember"
+                    layout="@layout/view_settings_row" />
+
+                <include
+                    android:id="@+id/rowAccountRefresh"
+                    layout="@layout/view_settings_row" />
+
+                <include
+                    android:id="@+id/rowAccountLogout"
+                    layout="@layout/view_settings_row" />
+            </LinearLayout>
+
             <!-- 阅读偏好 -->
             <LinearLayout
                 android:layout_width="match_parent"

@@ -6,13 +6,6 @@ import androidx.annotation.Nullable;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
-import java.util.regex.Pattern;
-
 /**
  * 服务端账号资料快照（{@code GET /v1/user/profile}）。
  * <p>
@@ -39,9 +32,6 @@ public class UserProfile {
     private static final String KEY_VIP_EXPIRE_AT = "vipExpireAt";
     private static final String KEY_REGISTER_TIME = "registerTime";
     private static final String KEY_STATUS = "status";
-
-    /** Go 的时间串会带纳秒（最多 9 位小数秒），{@link SimpleDateFormat} 吃不下。 */
-    private static final Pattern FRACTION = Pattern.compile("\\.\\d+");
 
     private long uid;
     private String nickname = "";
@@ -153,6 +143,10 @@ public class UserProfile {
     /**
      * 解析服务端资料。时间字段解析不出来时按「未知」（0）处理，
      * 而不是让整份资料作废——昵称、等级这些照旧能用。
+     *
+     * <p>时间走 {@link Rfc3339#parse}：服务端给的是 RFC3339 字符串，
+     * 而 {@link #toJson()} 落盘写的是毫秒数，只认字符串的话读缓存永远是 0
+     * （「在线正常、重启后变未知」那个 bug）。
      */
     @NonNull
     public static UserProfile fromJson(@NonNull JSONObject json) {
@@ -161,39 +155,9 @@ public class UserProfile {
         profile.nickname = json.optString(KEY_NICKNAME, "");
         profile.avatar = json.optString(KEY_AVATAR, "");
         profile.level = json.optInt(KEY_LEVEL, 0);
-        profile.vipExpireAt = parseRfc3339(json.optString(KEY_VIP_EXPIRE_AT, ""));
-        profile.registerTime = parseRfc3339(json.optString(KEY_REGISTER_TIME, ""));
+        profile.vipExpireAt = Rfc3339.parse(json.opt(KEY_VIP_EXPIRE_AT));
+        profile.registerTime = Rfc3339.parse(json.opt(KEY_REGISTER_TIME));
         profile.status = json.optInt(KEY_STATUS, 0);
         return profile;
-    }
-
-    /**
-     * 解析 Go 的 RFC3339 时间串（{@code 2026-10-09T12:00:00.123456789+08:00}）。
-     * <p>
-     * 不用 {@code java.time}：minSdk 24 上它要靠 desugaring 才有，而 {@code Jwt}
-     * 已经为了同一个原因绕开过一次时间解析。{@link SimpleDateFormat} 比 RFC3339
-     * 严，所以先做两步规整：砍掉小数秒（Go 带纳秒），时区去掉冒号
-     * （{@code +08:00 → +0800}），{@code Z} 等价于 {@code +0000}。
-     *
-     * @return 毫秒时间戳；字段缺失或格式不认识时返回 0，由调用方按「未知」处理
-     */
-    private static long parseRfc3339(@Nullable String raw) {
-        if (raw == null || raw.isEmpty()) {
-            return 0L;
-        }
-        String text = FRACTION.matcher(raw.trim()).replaceFirst("");
-        if (text.endsWith("Z") || text.endsWith("z")) {
-            text = text.substring(0, text.length() - 1) + "+0000";
-        } else if (text.length() >= 6 && text.charAt(text.length() - 3) == ':') {
-            text = text.substring(0, text.length() - 3) + text.substring(text.length() - 2);
-        }
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-        try {
-            Date parsed = format.parse(text);
-            return parsed == null ? 0L : parsed.getTime();
-        } catch (ParseException notATime) {
-            return 0L;
-        }
     }
 }

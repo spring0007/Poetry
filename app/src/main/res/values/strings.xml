@@ -64,8 +64,13 @@
     <string name="me_title">我的</string>
     <string name="me_subtitle">阅读偏好与数据统计</string>
     <string name="me_nickname">青衫客</string>
-    <string name="me_id">ID 1024 · 加入 128 天</string>
-    <string name="me_level">✦ Lv.5 诗友</string>
+    <!-- 资料卡第二行。只有背后真有服务端账号时才显示 ID：微信 / 本机身份登录没有服务端
+         用户，编一个 ID 出来比不写更糟。 -->
+    <string name="me_id_local">本机身份 · 未绑定手机号</string>
+    <string name="me_id_only">ID %1$d</string>
+    <string name="me_id_joined">ID %1$d · 加入 %2$d 天</string>
+    <!-- 资料卡第三行：会员状态。到期文案复用语音设置页那两条，两处口径必须一致 -->
+    <string name="me_member_free">普通诗友</string>
     <string name="me_stat_fav">收藏</string>
     <string name="me_stat_hours">朗读小时</string>
     <string name="me_stat_days">连续天数</string>
@@ -87,11 +92,25 @@
     <string name="font_large">A+</string>
     <string name="me_group_badges">我的成就</string>
     <string name="me_badges_meta">%1$d / %2$d 已解锁</string>
+    <!-- 成就徽章。名称 + 解锁条件，条件在点数徽章时以 Toast 显示，
+         所以两边都要短（MIUI 的 Toast 只给两行）。 -->
+    <string name="badge_moon">月下独酌</string>
+    <string name="badge_moon_cond">朗读 1 首</string>
+    <string name="badge_wine">对酒当歌</string>
+    <string name="badge_wine_cond">朗读满 50 次</string>
+    <string name="badge_book">手不释卷</string>
+    <string name="badge_book_cond">累计朗读 1 小时</string>
+    <string name="badge_stack">藏书五车</string>
+    <string name="badge_stack_cond">收藏 5 首</string>
+    <string name="badge_streak">持之以恒</string>
+    <string name="badge_streak_cond">连续打卡 7 天</string>
+    <string name="badge_days">日积月累</string>
+    <string name="badge_days_cond">累计使用 30 天</string>
+    <string name="badge_toast_done">%1$s · 已解锁</string>
+    <string name="badge_toast_todo">%1$s · %2$s解锁</string>
     <string name="me_group_more">更多</string>
     <string name="more_history">朗读历史</string>
     <string name="more_history_sub">最近读过的内容</string>
-    <string name="more_download">离线语音包</string>
-    <string name="more_download_sub">下载或导入后可断网朗读</string>
     <string name="more_skin">皮肤主题</string>
     <string name="more_skin_sub">宣纸 · 石青</string>
     <string name="more_about">关于诗韵</string>
@@ -360,6 +379,29 @@
     <string name="profile_stat_favorites">收藏 %1$d 首</string>
     <string name="profile_stat_checkin">累计打卡 %1$d 天 · 连续 %2$d 天</string>
     <string name="profile_saved">资料已保存</string>
+    <!-- 账号卡片：登录方式 / 绑定手机 / uid / 注册时间 / 会员状态。
+         手机号本机不存（见 UserAuth），是从 /v1/user/auth 现取再脱敏的。 -->
+    <string name="profile_account">账号</string>
+    <string name="profile_account_type">登录方式</string>
+    <string name="profile_account_phone">绑定手机</string>
+    <string name="profile_account_uid">用户 ID</string>
+    <string name="profile_account_register">注册时间</string>
+    <string name="profile_account_member">会员状态</string>
+    <string name="profile_login_phone">手机号</string>
+    <string name="profile_login_wechat">微信</string>
+    <string name="profile_login_qq">QQ</string>
+    <string name="profile_login_local">本机身份</string>
+    <string name="profile_phone_none">未绑定</string>
+    <string name="profile_unknown">—</string>
+    <string name="profile_account_refresh">延长登录</string>
+    <string name="profile_account_refresh_sub">主动续签当前登录凭证</string>
+    <string name="profile_account_logout">退出登录</string>
+    <string name="profile_account_logout_sub">清空本机的登录状态与凭证</string>
+    <string name="profile_refresh_ok">登录状态已延长</string>
+    <string name="profile_refresh_fail">凭证已失效，请重新登录</string>
+    <string name="profile_logout_title">退出登录</string>
+    <string name="profile_logout_msg">退出后收藏与阅读记录仍留在本机；云端音色权益需要重新登录才能恢复。</string>
+    <string name="profile_logout_done">已退出登录</string>
 
     <!-- ================= 打卡 ================= -->
     <string name="me_checkin_today">今日打卡</string>

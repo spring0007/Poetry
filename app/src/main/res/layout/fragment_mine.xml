@@ -72,7 +72,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_1"
-                    android:text="@string/me_id"
+                    android:text="@string/me_id_local"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption" />
 
                 <TextView
@@ -80,14 +80,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_2"
-                    android:background="@drawable/bg_hero_tag"
+                    android:background="@drawable/bg_badge"
                     android:paddingStart="@dimen/space_2"
                     android:paddingTop="1dp"
                     android:paddingEnd="@dimen/space_2"
                     android:paddingBottom="1dp"
-                    android:text="@string/me_level"
+                    android:text="@string/me_member_free"
                     android:textAppearance="@style/TextAppearance.Poetry.Caption"
-                    android:textColor="@color/white" />
+                    android:textColor="@color/ink_700" />
             </LinearLayout>
 
             <ImageButton
@@ -351,12 +351,16 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_6" />
 
-        <LinearLayout
+        <!-- 成就。用 GridLayout 三列两行而不是横向 LinearLayout：徽章名字里
+             「月下独酌」这种四字名在 size_badge_icon(42dp) 的单元格里放不下，
+             六列会被裁成两三个字。 -->
+        <GridLayout
             android:id="@+id/badgeRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_3"
-            android:orientation="horizontal" />
+            android:columnCount="3"
+            android:rowCount="2" />
 
         <!-- 更多 -->
         <include
@@ -379,10 +383,6 @@
 
             <include
                 android:id="@+id/rowStats"
-                layout="@layout/view_settings_row" />
-
-            <include
-                android:id="@+id/rowDownload"
                 layout="@layout/view_settings_row" />
 
             <include

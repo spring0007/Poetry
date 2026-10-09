@@ -8,6 +8,7 @@ import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
+import com.example.poetry.data.model.UserAuth;
 import com.example.poetry.data.model.Voice;
 
 import org.json.JSONArray;
@@ -252,6 +253,29 @@ final class JsonMapper {
             voice.setLocked(o.optBoolean("locked", false));
             voice.setSelected(false);
             out.add(voice);
+        }
+        return out;
+    }
+
+    // ------------------------------------------------------------ 账号
+
+    /**
+     * 认证绑定列表（{@code GET /v1/user/auth}）。
+     *
+     * <p>接口回的是顶层数组（{@code {code,data:[...]}}），不是分页负载，所以用
+     * {@link ApiClient#asArray} 取，别走 {@link #toPageOfPoems} 那条路。
+     */
+    @NonNull
+    static List<UserAuth> toAuths(@Nullable JSONArray array) {
+        List<UserAuth> out = new ArrayList<>();
+        if (array == null) {
+            return out;
+        }
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject item = array.optJSONObject(i);
+            if (item != null) {
+                out.add(UserAuth.fromJson(item));
+            }
         }
         return out;
     }

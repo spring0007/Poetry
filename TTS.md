@@ -14,9 +14,18 @@
 > 而 `SpeechEngine.speak(String text)` 收的是任意文本、还要分块。所以接回来时是
 > **新写一个子引擎挂在 `EngineRouter` 上**，不是把 `QCloudTts` 恢复。
 >
-> 撤除后的可见变化：音色列表里不再出现云端音色（`listVoices()` 只返回内置的那几个），
-> 语音设置页的「会员」开关暂时不解锁任何东西（`Member` 的类注释已同步说明），
-> **内置离线朗读完全不受影响**。APK 由 62.5 MB 降到 59.6 MB。
+> **云端音色后来又接回来了（v11，服务端代理版）**：`media/CloudTts.java` 作为第二个
+> 子引擎挂在 `EngineRouter` 上，音色表整体由 `GET /v1/tts/voices` 下发，锁定态
+> （`Voice.isLocked()`）是**服务端按请求里那张票现算的**——没登录 / 非会员拿到的就是
+> `locked`，客户端不自己判会员。会员状态来自 `GET /v1/user/profile`（`user.level` +
+> `vip_expire_at`），本机只缓存一份（`UserStore.getMember()`），登录页与语音设置页读的
+> 都是它；测试期那个本地放行开关已经删掉了。
+>
+> 合成走 `POST /v1/tts/synthesize`（按**作品引用**合成整首，不是按文本），
+> 所以它只服务详情页的整首朗读；试听、书架批量这些没有作品引用的场景仍旧走离线。
+> 云端失败（未登录 401 / 非会员 4003 / 服务端没配 4001）一律 `onNotice` 说明一句后
+> **静默切回离线音色接着读**，不弹错误框——见 `CloudTts.speakWork`。
+> **内置离线朗读完全不受影响**，也永远不需要登录。APK 体积不因它变化（无 native 依赖）。
 > `QCloudRoles` **已删除**：它那张本地音色表（10 个音色、`qcloud-*` 前缀）与服务端的
 > 目录（`internal/tts/tencent.go`，`cloud-*` 前缀）本来就对不上，两边各存一份只会继续漂移。
 > 现在音色表全在服务端随 `GET /v1/tts/voices` 下发，本地只留 id 的写法约定

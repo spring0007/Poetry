@@ -15,6 +15,7 @@ import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
+import com.example.poetry.data.model.UserAuth;
 import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.data.remote.ApiException;
@@ -670,6 +671,47 @@ public final class PoetryRepository {
             store.setNickname(profile.getNickname());
         }
         return profile;
+    }
+
+    /**
+     * 当前账号的认证绑定（手机号 / 微信 / QQ），给「我的」页的「账号」卡片用。
+     *
+     * <p>本机**不存手机号**（见 {@link UserAuth}），这是唯一能拿到它的地方。
+     * 未登录时直接回空列表而不是抛错：界面本来就还没到「显示手机号」那一步，
+     * 让调用方为此写一个分支不值得。
+     */
+    public void auths(@NonNull Callback<List<UserAuth>> callback) {
+        AppExecutors.get().net(() -> {
+            List<UserAuth> auths;
+            try {
+                auths = store.isAuthTokenValid() ? remote.auths() : new ArrayList<>();
+            } catch (ApiException e) {
+                AppExecutors.get().main(() -> callback.onError(e));
+                return;
+            }
+            AppExecutors.get().main(() -> callback.onData(auths));
+        });
+    }
+
+    /**
+     * 主动续签当前凭证，给「我的」页的「延长登录」用。
+     *
+     * <p>与 {@code ApiClient} 撞到 401 时的自动续签是同一条实现
+     * （见 {@code ApiClient#refreshSession}），区别只在由谁发起。
+     * {@code onData(false)} 表示「旧票已经换不动了」，此时该引导用户重新登录；
+     * 走网络就一定会有这种情况，所以它是正常结果，不算错误。
+     */
+    public void refreshSession(@NonNull Callback<Boolean> callback) {
+        AppExecutors.get().net(() -> {
+            boolean ok;
+            try {
+                ok = remote.refreshSession();
+            } catch (ApiException e) {
+                AppExecutors.get().main(() -> callback.onError(e));
+                return;
+            }
+            AppExecutors.get().main(() -> callback.onData(ok));
+        });
     }
 
     /**

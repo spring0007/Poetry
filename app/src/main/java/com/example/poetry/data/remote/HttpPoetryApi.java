@@ -11,6 +11,7 @@ import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Dynasty;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
+import com.example.poetry.data.model.UserAuth;
 import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 
@@ -311,6 +312,16 @@ public final class HttpPoetryApi implements PoetryApi {
     }
 
     /**
+     * 认证绑定列表。接口回的是**顶层数组**，不是分页负载，所以走
+     * {@link ApiClient#asArray}（见 {@link JsonMapper#toAuths}）。
+     */
+    @NonNull
+    @Override
+    public List<UserAuth> auths() throws ApiException {
+        return JsonMapper.toAuths(ApiClient.asArray(client.get(ApiConfig.API_USER_AUTH)));
+    }
+
+    /**
      * 下发验证码。
      *
      * @return dev 模式下服务端回显的固定验证码（生产环境恒为空串），
@@ -357,16 +368,16 @@ public final class HttpPoetryApi implements PoetryApi {
     }
 
     /**
-     * 主动续签。
+     * 主动续签，直接委托给 {@link ApiClient#refreshSession()}。
      *
-     * <p>这条路同样会经过 {@code ApiClient} 的 401 自动续签逻辑：如果这里的凭据已经失效，
-     * 会先尝试用旧票换新票，换不到才抛出 401。所以调用方拿到异常时，
-     * 可以认为「确实该重新登录了」，而不是「只是这次没成功」。
+     * <p>不在这里另发一次 POST 是有原因的：{@code ApiClient} 那份实现会把换到的新票
+     * 写回 {@code UserStore}，而这里自己发一遍只会拿到一个 token 字符串、
+     * 转手丢掉 —— 「延长登录」点了等于没点。401 自动续签走的也是那一条路，
+     * 于是「自动」和「手动」共用同一份经过验证的实现。
      */
     @Override
     public boolean refreshSession() throws ApiException {
-        JSONObject o = ApiClient.asObject(client.post(ApiConfig.API_AUTH_REFRESH, new JSONObject()));
-        return !o.optString("token", "").isEmpty();
+        return client.refreshSession();
     }
 
     @Override

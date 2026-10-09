@@ -1303,7 +1303,7 @@ public final class UserStore {
         return session().optBoolean("loggedIn", false);
     }
 
-    /** 登录方式：wechat / mock；未登录返回空串 */
+    /** 登录方式：phone（服务端账号）/ wechat / mock（本机身份）；未登录返回空串 */
     @NonNull
     public String getLoginProvider() {
         return session().optString("provider", "");

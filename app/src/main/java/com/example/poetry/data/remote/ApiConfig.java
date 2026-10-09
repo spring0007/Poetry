@@ -127,6 +127,8 @@ public final class ApiConfig {
 
     /** GET 个人资料 */
     public static final String API_PROFILE = "v1/user/profile";
+    /** GET 认证绑定列表（手机号 / 微信 / QQ），「账号」卡片用它显示脱敏手机号 */
+    public static final String API_USER_AUTH = "v1/user/auth";
     /** GET 书架列表 ?relType=&page=&size= */
     public static final String API_LIBRARY = "v1/user/library";
     /** POST 书架批量同步 */

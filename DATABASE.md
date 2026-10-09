@@ -341,39 +341,55 @@ manifest.isSubset == local.isSubset && builtAt <= local.builtAt → UP_TO_DATE
 
 ---
 
-## 5. 后台接口（预留，尚未接入）
+## 5. 后台接口（已接入）
 
 > 这一节说的是 **JSON 业务接口**（检索、译文、赏析、云端音色），跟 §4 的「下载诗库文件」
-> 是两码事。§4 已经能用，这里还全是占位。别因为 `ENABLED = false` 就以为下载也没通——
-> 下载走的是 `DbDownloadPolicy` / `HttpDownloader`，不看这个开关。
+> 是两码事。两者的开关也是分开的：关掉 `ENABLED` 只影响本节，§4 的下载走
+> `DbDownloadPolicy` / `HttpDownloader`，不看它。
 
-后端还没建立，因此整套远程层是**占位实现**，开关默认关闭：
-
-```java
-// data/remote/ApiConfig.java
-public static final boolean ENABLED = false;
-```
+后端已经建起来了（`E:/Poetry_Server`，Go），客户端这套远程层是**真的在跑**：
 
 | 文件 | 职责 |
 |---|---|
-| `data/remote/PoetryApi.java` | 接口契约：检索、详情、译文、赏析、每日推荐、热词、音色、云端 TTS、书架同步、埋点 |
-| `data/remote/RemotePoetrySource.java` | 空实现，所有方法回调 `ApiException.NOT_IMPLEMENTED` |
-| `data/remote/ApiConfig.java` | `BASE_URL` / `ENABLED` / 超时等集中配置 |
-| `data/remote/ApiCallback.java` / `ApiException.java` | 回调与错误码 |
+| `data/remote/PoetryApi.java` | 接口契约。**阻塞式**、失败抛 `ApiException`；方法名与后端路由一一对应 |
+| `data/remote/HttpPoetryApi.java` | 唯一实现，全部端点在这里拼地址（`ApiConfig.API_*`） |
+| `data/remote/ApiClient.java` | `HttpURLConnection` + 熔断 + 401 自动续签；`asObject` / `asArray` 兜住非预期负载 |
+| `data/remote/JsonMapper.java` | JSON ↔ 模型（含 `toPageOfPoems` 等分页形状） |
+| `data/remote/ApiConfig.java` | `BASE_URL` / `ENABLED` / 超时与熔断参数 / 全部端点常量 |
+| `data/remote/ApiException.java` / `Jwt.java` / `LoginResult.java` | 错误码（含 `VIP_REQUIRED`）、JWT 到期时间解析、登录结果 |
 
-**接入步骤**（后端就绪后）：
+**地址哪来的**：不在版本库里。`app/build.gradle.kts` 从 `local.properties` 读
+`com.example.poetry.API_BASE_URL`（按包名做命名空间，优先于通用的 `API_BASE_URL`）
+注入成 `BuildConfig`，默认值是 `http://10.0.2.2:8000/`（`API_ENABLED` 默认 `true`），
+也就是「模拟器访问宿主机上的本地后端」，clone 下来直接能联调。联调真机时把那行改成
+`com.example.poetry.API_BASE_URL=http://47.106.68.18:8000/` 即可。
 
-1. 在 `ApiConfig` 填 `BASE_URL`，把 `ENABLED` 改为 `true`；
-2. 用 Retrofit/OkHttp 实现 `PoetryApi`（或让 `RemotePoetrySource` 直接发请求）；
-3. UI 与 `PoetryRepository` 无需改动——目前依赖后台的译文、赏析、云端音色
-   在界面上显示「后台接口接入后显示完整内容」。
+```properties
+# local.properties（不进版本库）
+com.example.poetry.API_BASE_URL=http://10.0.2.2:8000/
+com.example.poetry.API_ENABLED=true
+```
+
+**取数次序**（`PoetryRepository` 是唯一分流点）：
+
+* **列表**（体裁 / 朝代 / 作者 / 检索 / 精选）——**本地先出图，远端回来替换第一页**。
+  本地库永远能秒开，网络只负责「把更全的那份补上」，断了、慢了都不影响首屏。
+* **单篇**（详情 / 译文 / 赏析 / 平仄）——**远端优先 → 本地库 → 内置示例**三级回落。
+* 远端不可达时不弹错：连续 3 次失败即熔断 30 秒，期间请求快速失败、本地库接管
+  （参数见 `ApiConfig`；连接超时 3 秒是刻意压短的）。
+
+**付费接口的闸门在服务端**：`POST /v1/tts/synthesize` 要求**已登录 + 会员**，
+未登录 `1002`、非会员 `4003`（客户端映射成 `ApiException.VIP_REQUIRED`）；
+`GET /v1/tts/voices` 的 `locked` 字段同样由服务端按请求里的票现算。
+客户端不判会员——它只缓存服务端下发的 `Member`（见 `TTS.md` 开头那段）。
 
 ---
 
 ## 6. 性能建议
 
-* 35 万行 `LIKE '%x%'` 是主要开销，建议后端就绪后把检索迁到服务端；
-  离线场景可考虑给 `poems` 建 FTS5 虚拟表（需另行导出，源库未开）。
+* 35 万行 `LIKE '%x%'` 是主要开销。检索已经**先在本地出图、远端再替换第一页**
+  （见 §5 的取数次序），所以本地这一遍不能省；真要提速得给 `poems` 建 FTS5 虚拟表
+  （需另行导出，源库未开）。
 * `score`（0–255）可直接用作「精选」排序依据。母库均值 173.5，而当前 978 首样本
   均值只有 **57.6**（978 首里 683 首是 0）——抽样按「朝代/体裁分组各取 100 首」来，
   `score` 分布不再代表母库，所以**别拿样本库的分数分布去调阈值**。

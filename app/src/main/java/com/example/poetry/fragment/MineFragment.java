@@ -1,17 +1,20 @@
 package com.example.poetry.fragment;
 
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
@@ -29,7 +32,9 @@ import com.example.poetry.data.DbStatus;
 import com.example.poetry.data.DbStatusListener;
 import com.example.poetry.data.PoetryRepository;
 import com.example.poetry.data.local.UserStore;
+import com.example.poetry.data.model.Member;
 import com.example.poetry.data.model.TtsConfig;
+import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.databinding.FragmentMineBinding;
 import com.example.poetry.ui.Night;
@@ -38,6 +43,9 @@ import com.example.poetry.media.Speaker;
 import com.example.poetry.ui.VoiceSheet;
 import com.example.poetry.util.Sliders;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -47,7 +55,6 @@ import java.util.Locale;
 public class MineFragment extends Fragment {
 
     private static final int TOTAL_CHECKIN = 7;
-    private static final int TOTAL_BADGES = 6;
 
     private FragmentMineBinding binding;
     private PoetryRepository repository;
@@ -108,7 +115,9 @@ public class MineFragment extends Fragment {
             binding.profileName.setText(R.string.me_not_logged_in);
             binding.profileAvatar.setText(R.string.login_seal_char);
             binding.profileId.setText(R.string.me_login_hint);
+            // 没登录就没有会员状态可讲，整枚标签收起来；空标签会留下一块没字的底色
             binding.profileLevel.setText("");
+            binding.profileLevel.setVisibility(View.GONE);
             View.OnClickListener login = v -> LoginActivity.open(requireContext());
             binding.profileEdit.setOnClickListener(login);
             binding.profileAvatar.setOnClickListener(login);
@@ -124,14 +133,81 @@ public class MineFragment extends Fragment {
             avatar = shown.substring(0, 1);
         }
         binding.profileAvatar.setText(avatar);
-        binding.profileId.setText(R.string.me_id);
-        String signature = store.getSignature();
-        binding.profileLevel.setText(signature.isEmpty()
-                ? getString(R.string.me_level) : signature);
+        binding.profileId.setText(profileIdLine());
+        binding.profileLevel.setVisibility(View.VISIBLE);
+        renderMember();
 
         View.OnClickListener edit = v -> ProfileActivity.open(requireContext());
         binding.profileEdit.setOnClickListener(edit);
         binding.profileAvatar.setOnClickListener(edit);
+    }
+
+    /**
+     * 资料卡第二行。
+     *
+     * <p>只有**背后真有服务端身份**（{@code isAuthTokenValid()}）时才报 uid ——
+     * 微信 / 本机身份登录没有服务端账号，写一个假 ID 出来比不写更糟。
+     * 没有资料时退化成「本机身份 · 未绑定手机号」，顺带告诉用户绑定入口在哪儿。
+     */
+    @NonNull
+    private CharSequence profileIdLine() {
+        UserProfile profile = store.isAuthTokenValid() ? store.getServerProfile() : null;
+        if (profile == null || profile.getUid() <= 0L) {
+            return getString(R.string.me_id_local);
+        }
+        long days = joinedDays(profile.getRegisterTime());
+        return days > 0L
+                ? getString(R.string.me_id_joined, profile.getUid(), days)
+                : getString(R.string.me_id_only, profile.getUid());
+    }
+
+    /**
+     * 注册到今天的天数；服务端没给注册时间（老账号）时返回 0，界面退化成只显示 ID。
+     * 当天注册算第 1 天 —— 显示「加入 0 天」不像人话。
+     */
+    private static long joinedDays(long registerTime) {
+        if (registerTime <= 0L) {
+            return 0L;
+        }
+        long elapsed = (System.currentTimeMillis() - registerTime) / 86_400_000L;
+        return Math.max(1L, elapsed);
+    }
+
+    /**
+     * 资料卡第三行：会员状态。口径与语音设置页一致 —— 都读服务端下发、
+     * {@code UserStore} 缓存的 {@link Member}，本地不再编造等级。
+     * 原先这里显示的是签名，位置被占掉之后「是不是会员」在「我的」页反而看不见。
+     *
+     * <p>配色跟着状态走。这一格原来借的是 Hero 卡上的 {@code bg_hero_tag}
+     * ——那是个半透明白底、配白字的标签，铺在深色 Hero 图上正好，铺在浅色卡面上
+     * 等于看不见（实测白字白底糊成一团）。所以换成可着色的 {@code bg_badge}，
+     * 非会员是素色、会员是金色实底，只靠底色的冷暖就能分辨。
+     */
+    private void renderMember() {
+        Member member = store.getMember();
+        boolean active = member.isActive();
+        binding.profileLevel.setText(memberLine(member));
+        int tint = ContextCompat.getColor(requireContext(),
+                active ? R.color.tenghuang_500 : R.color.surface_3);
+        ViewCompat.setBackgroundTintList(binding.profileLevel,
+                ColorStateList.valueOf(tint));
+    }
+
+    /** 会员状态的三种写法，与语音设置页共用同一批字符串。 */
+    @NonNull
+    private CharSequence memberLine(@NonNull Member member) {
+        if (!member.isActive()) {
+            return getString(R.string.me_member_free);
+        }
+        return member.getExpireAt() > 0L
+                ? getString(R.string.tts_member_expire, formatDate(member.getExpireAt()))
+                : getString(R.string.tts_member_lifetime);
+    }
+
+    /** 到期时间显示到日：用户只关心「还能用到哪天」。 */
+    @NonNull
+    private static String formatDate(long millis) {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(new Date(millis));
     }
 
     private void setupStats() {
@@ -342,51 +418,113 @@ public class MineFragment extends Fragment {
     // ---------------------------------------------------------------- 成就
 
     private void setupBadges() {
-        int favorites = repository.favorites().size();
-        int unlocked = 2 + (favorites >= 5 ? 1 : 0) + (store.getPlayCount() >= 10 ? 1 : 0);
+        List<Badge> badges = loadBadges();
+        int unlocked = 0;
+        for (Badge badge : badges) {
+            if (badge.unlocked) {
+                unlocked++;
+            }
+        }
         binding.badgeHeader.sectionTitle.setText(R.string.me_group_badges);
         binding.badgeHeader.sectionMeta.setText(
-                getString(R.string.me_badges_meta, unlocked, TOTAL_BADGES));
+                getString(R.string.me_badges_meta, unlocked, badges.size()));
 
         binding.badgeRow.removeAllViews();
-        addBadge("🌙", "月下独酌", true);
-        addBadge("🍶", "对酒当歌", store.getPlayCount() >= 10);
-        addBadge("📚", "藏书五车", favorites >= 5);
+        for (Badge badge : badges) {
+            addBadge(badge);
+        }
     }
 
-    private void addBadge(@NonNull String icon, @NonNull String name, boolean unlocked) {
-        LinearLayout item = new LinearLayout(requireContext());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+    /**
+     * 徽章清单。图标直接写在代码里（给一个 emoji 建资源没意义），名称与条件走字符串资源；
+     * 解锁与否**全部由真实数据推导**。
+     *
+     * <p>原先这一屏写死「已解锁 2 个」并且只画三个，于是无论读多少首都停在 2/6 ——
+     * 成就系统不反映任何东西。现在每个条件都能在界面上找到出处：
+     * 次数在「更多 · 数据统计」里，收藏在书架，打卡在同一张卡的第一行。
+     */
+    @NonNull
+    private List<Badge> loadBadges() {
+        int plays = store.getPlayCount();
+        int favorites = repository.favorites().size();
+        List<Badge> badges = new ArrayList<>();
+        badges.add(new Badge("🌙", R.string.badge_moon, R.string.badge_moon_cond, plays >= 1));
+        badges.add(new Badge("🍶", R.string.badge_wine, R.string.badge_wine_cond, plays >= 50));
+        badges.add(new Badge("📖", R.string.badge_book, R.string.badge_book_cond,
+                store.getReadHours() >= 1f));
+        badges.add(new Badge("📚", R.string.badge_stack, R.string.badge_stack_cond,
+                favorites >= 5));
+        badges.add(new Badge("🔥", R.string.badge_streak, R.string.badge_streak_cond,
+                store.getCheckinStreak() >= 7));
+        badges.add(new Badge("🗓️", R.string.badge_days, R.string.badge_days_cond,
+                store.getActiveDays() >= 30));
+        return badges;
+    }
+
+    /** 点一下说明还差什么 —— 锁着的徽章没有别的信息可给。 */
+    private void addBadge(@NonNull Badge badge) {
+        Context context = requireContext();
+        LinearLayout item = new LinearLayout(context);
+        // 列宽按权重均分（三列两行，见 fragment_mine.xml 的 columnCount）。
+        // 不用固定宽度：格子数以后变了也不用改这里。
+        GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+        lp.width = 0;
+        lp.height = GridLayout.LayoutParams.WRAP_CONTENT;
+        lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        lp.bottomMargin = getResources().getDimensionPixelSize(R.dimen.space_3);
         item.setLayoutParams(lp);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        TextView iconView = new TextView(requireContext());
+        TextView iconView = new TextView(context);
         int size = getResources().getDimensionPixelSize(R.dimen.size_badge_icon);
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(size, size);
-        iconView.setLayoutParams(iconLp);
+        iconView.setLayoutParams(new LinearLayout.LayoutParams(size, size));
         iconView.setBackgroundResource(R.drawable.bg_circle);
         iconView.setGravity(Gravity.CENTER);
-        iconView.setText(icon);
+        iconView.setText(badge.icon);
         iconView.setTextSize(18f);
         ViewCompat.setBackgroundTintList(iconView, ColorStateList.valueOf(
-                ContextCompat.getColor(requireContext(),
-                        unlocked ? R.color.tenghuang_100 : R.color.surface_3)));
-        iconView.setAlpha(unlocked ? 1f : 0.45f);
+                ContextCompat.getColor(context,
+                        badge.unlocked ? R.color.tenghuang_100 : R.color.surface_3)));
+        iconView.setAlpha(badge.unlocked ? 1f : 0.45f);
 
-        TextView nameView = new TextView(requireContext());
+        TextView nameView = new TextView(context);
         nameView.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         nameView.setPadding(0, getResources().getDimensionPixelSize(R.dimen.space_2), 0, 0);
-        nameView.setText(name);
+        nameView.setText(badge.nameRes);
         nameView.setTextAppearance(R.style.TextAppearance_Poetry_Caption);
-        nameView.setTextColor(ContextCompat.getColor(requireContext(),
-                unlocked ? R.color.ink_700 : R.color.ink_400));
+        nameView.setTextColor(ContextCompat.getColor(context,
+                badge.unlocked ? R.color.ink_700 : R.color.ink_400));
 
         item.addView(iconView);
         item.addView(nameView);
+        item.setOnClickListener(v -> Toast.makeText(context,
+                badge.unlocked
+                        ? getString(R.string.badge_toast_done, getString(badge.nameRes))
+                        : getString(R.string.badge_toast_todo,
+                                getString(badge.nameRes), getString(badge.condRes)),
+                Toast.LENGTH_SHORT).show());
         binding.badgeRow.addView(item);
+    }
+
+    /** 一个成就徽章。{@code unlocked} 由真实数据算出来，不写死。 */
+    private static final class Badge {
+        @NonNull
+        final String icon;
+        @StringRes
+        final int nameRes;
+        @StringRes
+        final int condRes;
+        final boolean unlocked;
+
+        Badge(@NonNull String icon, @StringRes int nameRes, @StringRes int condRes,
+              boolean unlocked) {
+            this.icon = icon;
+            this.nameRes = nameRes;
+            this.condRes = condRes;
+            this.unlocked = unlocked;
+        }
     }
 
     // ---------------------------------------------------------------- 更多
@@ -397,7 +535,6 @@ public class MineFragment extends Fragment {
 
         bindRow(binding.rowHistory, R.string.more_history, R.string.more_history_sub);
         bindRow(binding.rowStats, R.string.stats_title, R.string.stats_sub);
-        bindRow(binding.rowDownload, R.string.more_download, R.string.more_download_sub);
         bindRow(binding.rowSkin, R.string.more_skin, R.string.more_skin_sub);
         bindRow(binding.rowAbout, R.string.more_about, R.string.more_about_sub);
 
@@ -413,8 +550,6 @@ public class MineFragment extends Fragment {
                 HistoryActivity.open(requireContext()));
         binding.rowStats.getRoot().setOnClickListener(v ->
                 StatsActivity.open(requireContext()));
-        binding.rowDownload.getRoot().setOnClickListener(v ->
-                VoiceSettingsActivity.open(requireContext()));
         binding.rowSkin.getRoot().setOnClickListener(v ->
                 SkinActivity.open(requireContext()));
         binding.rowAbout.getRoot().setOnClickListener(v ->

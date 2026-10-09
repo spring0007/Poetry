@@ -7,6 +7,7 @@ import com.example.poetry.data.model.Author;
 import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
+import com.example.poetry.data.model.UserAuth;
 import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 
@@ -165,6 +166,15 @@ public interface PoetryApi {
      */
     @NonNull
     UserProfile profile() throws ApiException;
+
+    /**
+     * 当前账号的认证绑定（手机号 / 微信 / QQ），需要登录。
+     *
+     * <p>本机不存手机号（见 {@link UserAuth}），要显示「绑定手机」只能问这里。
+     * 没有绑定的账号返回空列表，不是错误。
+     */
+    @NonNull
+    List<UserAuth> auths() throws ApiException;
 
     /** 下发登录验证码 */
     @NonNull
