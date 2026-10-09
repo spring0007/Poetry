@@ -289,6 +289,9 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
         finishing = true;
+        // 这里不用再刷新资料：登录那条路自己已经在落库之后拉过一次了
+        // （见 PoetryRepository#login）。语音设置页下次 onResume 重取音色目录时
+        // 就能拿到正确的锁定态（见 VoiceSettingsActivity#onResume）。
         Intent pending = getIntent().getParcelableExtra(AuthGuard.EXTRA_PENDING);
         if (pending != null) {
             startActivity(pending);

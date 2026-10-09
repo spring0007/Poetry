@@ -206,63 +206,43 @@
     <string name="voice_role_lingxi_name">灵犀</string>
     <string name="voice_role_lingxi_desc">清亮灵动 · 适合抒情</string>
 
-    <!--
-        腾讯云语音合成提供的在线发音人。名字用腾讯官方音色名（智瑜、智云……），
-        不在 App 里另起名——它们是云端服务侧的固定 id，改名反而让用户对不上号。
-        音色 id 见 https://cloud.tencent.com/document/product/1073/92668 。
-        101xxx 是基础/精品音色，501xxx 是大模型音色（更自然、更贵）。
-    -->
-    <string name="voice_qcloud_zhiyu_name">智瑜</string>
-    <string name="voice_qcloud_zhiyu_desc">情感饱满 · 适合婉约抒情</string>
-    <string name="voice_qcloud_zhiyun_name">智云</string>
-    <string name="voice_qcloud_zhiyun_desc">沉稳从容 · 适合怀古咏史</string>
-    <string name="voice_qcloud_zhiyan_name">智燕</string>
-    <string name="voice_qcloud_zhiyan_desc">字正腔圆 · 适合长篇叙事</string>
-    <string name="voice_qcloud_zhihui_name">智辉</string>
-    <string name="voice_qcloud_zhihui_desc">端正大气 · 适合豪放言志</string>
-    <string name="voice_qcloud_zhimeng_name">智萌</string>
-    <string name="voice_qcloud_zhimeng_desc">稚气清亮 · 适合童趣小令</string>
-    <string name="voice_qcloud_zhitian_name">智甜</string>
-    <string name="voice_qcloud_zhitian_desc">甜美灵动 · 适合闺秀小令</string>
-    <string name="voice_qcloud_zhitong_name">智彤</string>
-    <string name="voice_qcloud_zhitong_desc">粤语吟诵 · 别样韵味</string>
-    <string name="voice_qcloud_zhirui_name">智瑞</string>
-    <string name="voice_qcloud_zhirui_desc">俊朗有力 · 适合边塞军旅</string>
-    <string name="voice_qcloud_zhixi_name">智希</string>
-    <string name="voice_qcloud_zhixi_desc">温润亲和 · 适合田园山水</string>
-    <string name="voice_qcloud_zhike_name">智柯</string>
-    <string name="voice_qcloud_zhike_desc">醇厚低回 · 适合山水隐逸</string>
-    <string name="voice_qcloud_zhibin_name">智斌</string>
-    <string name="voice_qcloud_zhibin_desc">大模型朗读 · 适合长篇诗文</string>
-    <string name="voice_qcloud_zhiju_name">智菊</string>
-    <string name="voice_qcloud_zhiju_desc">大模型朗读 · 声线舒展</string>
-
-    <!-- 音色列表：云端音色标签与会员锁定态 -->
+    <!-- 音色列表：云端音色标签与会员锁定态。
+         音色名与气质描述（智瑜、智云……）已改由服务端随 GET /v1/tts/voices 下发，
+         本地不再存一份：加一个音色不该需要发版，两边各留一张表迟早会漂移。 -->
     <string name="voice_tag_member">会员</string>
     <string name="voice_locked_action">解锁</string>
-    <string name="voice_member_required">开通会员后可使用腾讯云音色</string>
     <string name="voice_member_title">腾讯云音色</string>
-    <string name="voice_member_msg">云端音色由腾讯云语音合成提供，音质更自然，需开通会员后使用。测试期可在「语音设置」页顶部的会员开关里打开。</string>
+    <string name="voice_member_msg">云端音色由腾讯云语音合成提供，音质更自然。它走服务端代理合成、每次朗读都会产生费用，所以只对会员开放。当前版本还没有付费入口，会员权益在服务端配置。</string>
     <string name="voice_member_positive">知道了</string>
     <!-- 这两条走 Toast：MIUI 的 Toast 只给两行，长一点就被截成「……」，所以控制在 24 字上下 -->
     <string name="voice_member_suspended">「%1$s」需开通会员；选择已保留，开通后自动恢复。</string>
     <string name="voice_cloud_unavailable">「%1$s」暂时不可用；选择已保留，恢复后自动切回。</string>
+    <!-- 云端音色表拉不到时，被顶替的那个音色只剩一个 id 可用，通报里就用这个通称 -->
+    <string name="voice_cloud_name">云端音色</string>
 
-    <!-- 语音设置：云端引擎状态与会员开关 -->
+    <!-- 语音设置：云端引擎状态 -->
     <string name="tts_cloud_no_voice">腾讯云音色暂不可用</string>
-    <string name="tts_cloud_synth_failed">合成请求失败：%1$s</string>
-    <string name="tts_cloud_synth_error">合成请求异常：%1$s</string>
-    <string name="tts_cloud_play_failed">播放失败：%1$s</string>
-    <string name="tts_cloud_unknown_error">未知错误</string>
-    <!-- 服务端的错误码翻成人话：SDK 自带的 message 是「Server response error」这类笼统说法，
-         用户拿它分不清是额度用完了还是密钥停了，更不知道该做什么 -->
-    <string name="tts_cloud_quota_exhausted">云端音色额度已用尽，请在腾讯云控制台续购资源包</string>
-    <string name="tts_cloud_pkg_missing">云端音色尚未开通资源包，请在腾讯云控制台开通</string>
-    <string name="tts_cloud_auth_failed">云端音色鉴权失败，请检查密钥与授权</string>
+    <string name="tts_cloud_play_failed">云端音色播放中断，请重试</string>
     <string name="tts_cloud_fallback">云端音色暂时不可用，已改用内置音色</string>
+    <!-- 上面那句是「没会员 / 连不上」的统称；会员到期这一条指向下一步动作，单独一句 -->
+    <string name="tts_cloud_member_fallback">云端音色需会员，已用本机音色朗读</string>
+    <!-- 试听读的是一句固定的话、不是这首作品，云端那条路（按作品合成）接不了 -->
+    <string name="tts_cloud_preview">试听用本机音色，正文朗读才用云端音色</string>
+    <string name="tts_cloud_text_only">云端音色只能整首朗读</string>
+    <!-- 云端引擎状态：目录在网络上，可能还没到 -->
+    <string name="tts_cloud_fetching">正在获取云端音色…</string>
+    <string name="tts_cloud_ready">云端音色就绪 · %1$d 个</string>
+    <string name="tts_cloud_locked">云端音色需会员 · %1$d 个</string>
+    <!-- 本机语音包缺失、但有云端音色顶得上时，别把状态说得像「什么都读不了」 -->
+    <string name="tts_cloud_only">内置语音包不可用，朗读走云端音色</string>
     <string name="tts_member_label">会员音色权限</string>
-    <string name="tts_member_on">体验中 · 全部音色可用</string>
     <string name="tts_member_off">未开通 · 仅离线音色</string>
+    <string name="tts_member_signed_out">登录后可开通云端音色</string>
+    <!-- 会员有效期的两种说法：长期有效（服务端没给到期时间）和具体日期 -->
+    <string name="tts_member_expire">会员有效期至 %1$s</string>
+    <string name="tts_member_lifetime">会员长期有效</string>
+    <string name="tts_member_login">去登录</string>
+    <string name="tts_member_learn">了解会员</string>
     <string name="tts_pitch">音调</string>
     <string name="tts_volume">音量</string>
     <string name="tts_ratio_value">%.1f×</string>

@@ -56,7 +56,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- 会员音色权限（测试期：默认开通，可在此手动切换验证权限拦截） -->
+            <!-- 会员音色权限：只显示、不给开关，权益由服务端给（见 VoiceSettingsActivity#setupMember） -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -91,10 +91,21 @@
                             android:textAppearance="@style/TextAppearance.Poetry.CaptionWeak" />
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/memberSwitch"
+                    <!-- 会员不能在这里开关：权益是服务端给的（user.level + vip_expire_at），
+                         本机只能显示和引导（见 VoiceSettingsActivity#setupMember）。
+                         没得点的时候（已是会员）整块隐藏。 -->
+                    <TextView
+                        android:id="@+id/memberAction"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:paddingStart="@dimen/space_2"
+                        android:paddingTop="@dimen/space_1"
+                        android:paddingEnd="@dimen/space_1"
+                        android:paddingBottom="@dimen/space_1"
+                        android:textAppearance="@style/TextAppearance.Poetry.Caption"
+                        android:textColor="?attr/colorPrimary"
+                        android:visibility="gone" />
                 </LinearLayout>
             </LinearLayout>
             <!-- 发音人 -->

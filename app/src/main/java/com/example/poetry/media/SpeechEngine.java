@@ -13,9 +13,9 @@ import java.util.List;
 /**
  * 语音合成引擎的统一抽象。
  * <p>
- * 眼下只有一个实现：{@link SherpaTts}，sherpa-onnx + 随 APK 分发的中文 VITS 模型，
- * 整条链路跑在本机，不联网、不依赖任何第三方 App。保留这层接口是因为它在跑过七个
- * 后端之后（见 {@code TTS.md} 的演进表）证明是值得的——换引擎不必动 UI。
+ * 两个实现：{@link SherpaTts}（sherpa-onnx + 随 APK 分发的中文 VITS 模型，整条链路跑在
+ * 本机，不联网、不依赖任何第三方 App）和 {@link CloudTts}（服务端代理的腾讯云音色，
+ * 要联网、要登录、要会员）。两者由 {@link EngineRouter} 合成一个交给上层。
  * <p>
  * 一个引擎可以带**多个语音包**，每个语音包里有多个发音人；{@link #listVoices()} 把
  * 它们摊平成一张音色表交给界面，界面不需要知道音色属于哪个包。
@@ -66,6 +66,35 @@ public interface SpeechEngine {
     @NonNull
     List<Voice> listVoices();
 
+    /**
+     * 音色表（可能）变了——拉到了新的目录，或者确认这一次拉不到。
+     * <p>
+     * 默认空实现：音色表是本机枚举出来的引擎（{@link SherpaTts}）不存在这个问题。
+     * 云端那份要走网络，界面已经画完了它才到是常态，所以需要一次「表变了」的通知，
+     * 而不是让界面去轮询。回调在主线程。
+     */
+    default void setVoiceListListener(@Nullable Runnable listener) {
+    }
+
+    /**
+     * 重新取一次音色表。
+     * <p>
+     * 登录态变了（音色的锁定态跟着变）时值得重取一次；默认什么都不做——本机的表一直在那儿。
+     */
+    default void refreshVoices() {
+    }
+
+    /**
+     * 音色表是不是已经落定（拉回来了，或者确认拉不到）。
+     * <p>
+     * 默认 true：本机枚举出来的表一直在那儿，不存在「还没到齐」。云端那份在目录到达之前
+     * 只列得出离线音色，界面据此判断「眼下看到的这张表全不全」——不全就先别下结论
+     * （例如「你存的云端音色用不上了」这种话，等目录到了再说）。
+     */
+    default boolean isVoiceListSettled() {
+        return true;
+    }
+
     /** 切换发音人 */
     boolean setVoice(@NonNull String voiceId);
 
@@ -75,7 +104,29 @@ public interface SpeechEngine {
     /** 应用完整配置（发音人 / 语速 / 音调 / 音量） */
     void apply(@NonNull TtsConfig config);
 
+    /**
+     * 读一段文本，和这首作品没有关系（试听、逐句朗读）。
+     */
     void speak(@NonNull String text);
+
+    /**
+     * 读一个作品：除了文本，还带上「这是哪一首」的引用。
+     * <p>
+     * 绝大多数引擎只要文本，所以默认实现直接转给 {@link #speak(String)}。分出来是因为
+     * 云端那条路是<b>按作品合成</b>的：服务端的 {@code POST /v1/tts/synthesize} 收的是
+     * 「作品引用 + 音色 + 语速」，一次给回整首的音频，光有一段文本它无处下手。
+     * <p>
+     * 之所以让引用跟着这一次调用走，而不是先用 {@code setCurrentWork(ref)} 记下「当前作品」
+     * 再 {@code speak(text)}：同一个界面里还有试听，读的是一句固定的话、不是这首作品。
+     * 把「当前作品」挂在引擎上，那一瞬间的状态分不清「在读正文」和「在读试听句」，
+     * 试听就会拿整首去合成。引用跟着调用走，没有这个歧义。
+     *
+     * @param workRef 作品引用，交给服务端认人（见 {@code Poem#getLookupRef()}）
+     * @param text    正文，兜底时仍要用它从本机读出来
+     */
+    default void speakWork(@NonNull String workRef, @NonNull String text) {
+        speak(text);
+    }
 
     void stop();
 

@@ -17,8 +17,11 @@
 > 撤除后的可见变化：音色列表里不再出现云端音色（`listVoices()` 只返回内置的那几个），
 > 语音设置页的「会员」开关暂时不解锁任何东西（`Member` 的类注释已同步说明），
 > **内置离线朗读完全不受影响**。APK 由 62.5 MB 降到 59.6 MB。
-> `QCloudRoles` 保留：`voiceId` / `voiceType` 的映射是两端约定，而且历史配置里
-> 存着的 `cloud-*` id 还得靠它认出来给一句说明。
+> `QCloudRoles` **已删除**：它那张本地音色表（10 个音色、`qcloud-*` 前缀）与服务端的
+> 目录（`internal/tts/tencent.go`，`cloud-*` 前缀）本来就对不上，两边各存一份只会继续漂移。
+> 现在音色表全在服务端随 `GET /v1/tts/voices` 下发，本地只留 id 的写法约定
+> （`Voice.CLOUD_PREFIX` / `Voice.isCloudId` / `Voice.normalizeId`），
+> 读历史配置时把旧的 `qcloud-*` 就地映射成 `cloud-*`（迁移点只有 `TtsConfig.fromJson` 一处）。
 
 > **先读这一段（v9，2026 年补记）。**
 > 本文下面的 §1–§12 记录的是 **v8 之前**的演进过程，其中 MultiTTS 桥接、Edge 在线、

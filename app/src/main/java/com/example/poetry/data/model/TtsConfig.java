@@ -122,7 +122,9 @@ public class TtsConfig {
         try {
             JSONObject json = new JSONObject(raw);
             TtsConfig config = new TtsConfig();
-            config.setVoiceId(json.optString(KEY_VOICE, ""));
+            // 历史配置里可能还留着旧的 qcloud- 前缀（见 Voice#LEGACY_CLOUD_PREFIX）。
+            // 迁移只做在这一处：读进来就是当前写法，界面、引擎那头才都能按一种 id 比对。
+            config.setVoiceId(Voice.normalizeId(json.optString(KEY_VOICE, "")));
             config.setRate((float) json.optDouble(KEY_RATE, RATE_DEFAULT));
             config.setPitch((float) json.optDouble(KEY_PITCH, PITCH_DEFAULT));
             config.setVolume((float) json.optDouble(KEY_VOLUME, VOLUME_DEFAULT));

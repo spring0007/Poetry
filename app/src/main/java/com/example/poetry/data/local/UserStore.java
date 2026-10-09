@@ -12,6 +12,7 @@ import com.example.poetry.data.model.DayStat;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.Member;
 import com.example.poetry.data.model.TtsConfig;
+import com.example.poetry.data.model.UserProfile;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -340,37 +341,30 @@ public final class UserStore {
     }
 
     /**
-     * 首次启动（member 分区没有任何记录）按测试期开关写入默认会员状态，
-     * 之后用户手动切换过就会留下 {@code level} 字段，不再被这个默认值覆盖。
+     * 首次启动（member 分区没有 {@code level}）写入一份未开通记录，
+     * 让「本机还没有任何权益信息」有个明确的落点。之后服务端资料回来了会覆盖它
+     * （见 {@link #setAccount}）。
+     * <p>
+     * 写的永远是未开通：权益在服务端，本地开局不该先给出什么东西。
      */
     private void ensureMember() {
         synchronized (lock) {
             JSONObject member = root.optJSONObject("member");
-            if (member == null) {
-                member = new JSONObject();
-                try {
-                    root.put("member", member);
-                } catch (JSONException ignored) {
-                    // ignore
-                }
+            if (member != null && member.has("level")) {
+                return;
             }
-            if (!member.has("level")) {
-                Member seed = Member.GRANT_BY_DEFAULT_FOR_TEST
-                        ? Member.vip(0L, Member.SOURCE_TEST) : Member.free();
-                try {
-                    root.put("member", seed.toJson());
-                } catch (JSONException ignored) {
-                    // ignore
-                }
-                save();
+            try {
+                root.put("member", Member.free().toJson());
+            } catch (JSONException ignored) {
+                // ignore
             }
         }
     }
 
     // ------------------------------------------------------------ 会员
     /**
-     * 当前会员记录；没有记录时回退到测试期默认开通的会员。
-     * 解析损坏一律按未开通处理——宁可少放一个音色，不能错放权益。
+     * 当前会员记录；没有记录（或记录损坏）时按未开通。
+     * 宁可少放一个音色，不能错放权益。
      */
     @NonNull
     public Member getMember() {
@@ -380,8 +374,7 @@ public final class UserStore {
                 return Member.fromJson(m.toString());
             }
         }
-        return Member.GRANT_BY_DEFAULT_FOR_TEST
-                ? Member.vip(0L, Member.SOURCE_TEST) : Member.free();
+        return Member.free();
     }
 
     public void setMember(@NonNull Member member) {
@@ -398,6 +391,46 @@ public final class UserStore {
     /** 是否会员（会过期的会员以当前时间判定是否有效）。 */
     public boolean isMember() {
         return getMember().isActive();
+    }
+
+    /**
+     * 用服务端资料刷新本机账号缓存，一次落盘写「会员权益」与「原始资料」两份。
+     *
+     * <p>为什么留两份：{@code member} 是判定用的归一化结果（等级、到期、是否被禁用
+     * 都已经折算进去，见 {@link UserProfile#toMember()}），{@code account} 是「我的」页
+     * 要显示的原字段（昵称、注册时间、等级）。合成它们会让界面为了显示一个注册时间
+     * 去反解会员记录。
+     *
+     * <p>传 {@code null} 表示「这次拿不到资料」——未登录，或者刷新失败。
+     * 那时两份一起清掉，会员回到未开通。这是刻意的失败方向：判定基准本就在服务端，
+     * 本地判宽了也换不来一次成功合成，只会在点下去的时候被 403 顶回来，
+     * 变成「界面说能用、点了却不行」这种更让人困惑的状态。代价是会员遇上短暂断网
+     * 会看到音色被锁，下次刷新即自愈——而云端合成本来就要联网。
+     */
+    public void setAccount(@Nullable UserProfile profile) {
+        synchronized (lock) {
+            Member member = profile == null ? Member.free() : profile.toMember();
+            try {
+                root.put("member", member.toJson());
+                if (profile == null) {
+                    root.remove("account");
+                } else {
+                    root.put("account", profile.toJson());
+                }
+            } catch (JSONException ignored) {
+                // ignore
+            }
+        }
+        save();
+    }
+
+    /** 服务端资料缓存；未登录或从没刷新成功过时为 {@code null}。 */
+    @Nullable
+    public UserProfile getServerProfile() {
+        synchronized (lock) {
+            JSONObject account = root.optJSONObject("account");
+            return account == null ? null : UserProfile.fromJson(account);
+        }
     }
 
     @NonNull
@@ -1383,6 +1416,15 @@ public final class UserStore {
                 s.put("token", "");
                 s.put("userId", 0L);
                 s.put("expireAt", 0L);
+            } catch (JSONException ignored) {
+                // ignore
+            }
+            // 会员权益必须跟着一起清：它描述的是「当前这个账号能用什么」，
+            // 留着的话下一个在这台设备上登录的人（甚至没登录的人）会继续看到
+            // 云端音色是解锁的。真正拦得住的是服务端，但界面不该自相矛盾。
+            try {
+                root.put("member", Member.free().toJson());
+                root.remove("account");
             } catch (JSONException ignored) {
                 // ignore
             }

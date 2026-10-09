@@ -208,6 +208,20 @@ public class Poem implements Parcelable {
         return (key == null || key.isEmpty()) ? String.valueOf(id) : key;
     }
 
+    /**
+     * 这一首在后端有没有对得上的身份——也就是能不能拿 {@link #getLookupRef()} 去问后端。
+     * <p>
+     * 判据是 {@code uid} 非空，不是 id：内置示例数据（见
+     * {@code SeedDataSource#poem(long, …)}）有正数 id 却没有 uid，而本地 id 空间和
+     * 后端的 id 空间<b>不是同一个</b>——拿裸数字去 {@code /v1/poems/123} 会读到另一首诗，
+     * 合成出来的音频就是别人那一首。这种事不能靠「大概对得上」，所以只有认得出 uid
+     * 的才允许走云端（见 {@code DetailActivity#startPlay}）。
+     */
+    public boolean hasServerIdentity() {
+        String key = uid;
+        return key != null && !key.isEmpty();
+    }
+
     /** 注释：一整段文本，可能多行，也可能是 SEP 连接的多条，见 {@link #getNoteList()} */
     public String getNotes() {
         return notes;

@@ -1127,7 +1127,15 @@ public class DetailActivity extends AppCompatActivity {
         // 按日期记一次朗读：同一天里同一首只累加次数
         store.recordPlay(poem);
         // 换行原样交给引擎：TextChunker 要按诗行分「联」，替成「。」就没法分了
-        Speaker.get().speak(poem.getBody());
+        if (poem.hasServerIdentity()) {
+            // 带作品引用走：选了云端音色时，服务端是按作品合成整首的（见 SpeechEngine#speakWork）。
+            // 引用必须是后端认得的那个（uid），不能拿本地 id 去顶——那是另一首诗
+            // （见 Poem#hasServerIdentity）。本机引擎会忽略这个参数，照文本读。
+            Speaker.get().speakWork(poem.getLookupRef(), poem.getBody());
+        } else {
+            // 内置示例这类没有后端身份的作品只能走本机音色
+            Speaker.get().speak(poem.getBody());
+        }
     }
 
     private void stopPlay() {

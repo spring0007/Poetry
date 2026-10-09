@@ -58,6 +58,12 @@ public class PoetryApp extends Application {
         Speaker.get().prepare(this, null);
         Speaker.get().apply(store.getTtsConfig());
 
+        // 拉一次账号资料，把会员权益刷新到最新（云端音色的解锁态由它决定）。
+        // 不阻塞启动，也不关心结果：它自己在网络池上跑，失败只是这次按未开通处理。
+        // 未登录的用户会在发请求之前就返回（见 PoetryRepository#fetchProfile），
+        // 所以匿名冷启动不会多一个请求。
+        PoetryRepository.get(this).refreshProfile(null);
+
         Night.apply(store);
     }
 

@@ -26,6 +26,8 @@ public class ApiException extends Exception {
     public static final int TTS_UNAVAILABLE = 1008;
     /** 熔断中：短时间内连续失败，正在冷却，本次没发出真实请求 */
     public static final int BREAKER_OPEN = 1009;
+    /** 403 + 业务码 4003：已登录但不是会员，云端音色是付费能力 */
+    public static final int VIP_REQUIRED = 1010;
 
     // ---- 下载（诗库安装）专用 ----
 
@@ -116,6 +118,10 @@ public class ApiException extends Exception {
                 return "操作太频繁，请稍后再试";
             case TTS_UNAVAILABLE:
                 return "云端朗读暂不可用，已切换本地语音";
+            case VIP_REQUIRED:
+                // 措辞指向下一步动作。服务端返回的就是这句（见 tts_handler.go），
+                // 但客户端自己也要能说清——文案不该依赖网络往返。
+                return "云端音色为会员功能，已切换本地语音";
             case HTTP:
                 return bizCode >= 500 ? "服务器开小差了，请稍后再试"
                         : "请求失败（HTTP " + bizCode + "）";

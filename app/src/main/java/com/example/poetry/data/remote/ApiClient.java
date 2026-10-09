@@ -269,6 +269,8 @@ public final class ApiClient {
                 return ApiException.RATE_LIMITED;
             case 4001: // CodeTTSUnavailable
                 return ApiException.TTS_UNAVAILABLE;
+            case 4003: // CodeVIPRequired
+                return ApiException.VIP_REQUIRED;
             default:
                 return ApiException.BUSINESS;
         }
@@ -285,14 +287,28 @@ public final class ApiClient {
         }
         // 服务端正常返回了 JSON 错误体的话，里面的 message 比 HTTP 状态码有用得多
         String detail = body;
+        int bizCode = 0;
         try {
             JSONObject root = new JSONObject(body);
             String message = root.optString("message", "");
             if (!message.isEmpty()) {
                 detail = message;
             }
+            bizCode = root.optInt("code", 0);
         } catch (JSONException ignored) {
             // 不是 JSON（网关返回的 HTML 错误页），原样截断带上
+        }
+        // 后端「HTTP 状态码与业务码同步」：403 的体里带 4003、503 带 4001。
+        // 能区分的就按业务码抛，因为状态码丢掉了「为什么失败」——
+        // 「非会员点云音色」和「服务端没配密钥」都是 4xx/5xx 里的一句话，
+        // 上层据此既说不清原因，也做不了「切回离线音色」这种正确的反应。
+        // 认不出来的码（例如 4002 合成失败 → 502）仍旧落回 HTTP 分支计熔断：
+        // 那确实是上游坏了，退避重试是对的。
+        if (bizCode != 0) {
+            int mapped = mapBizCode(bizCode);
+            if (mapped != ApiException.BUSINESS) {
+                return new ApiException(mapped, detail, null, bizCode);
+            }
         }
         return new ApiException(ApiException.HTTP,
                 "服务端返回 " + status + "：" + head(detail), null, status);

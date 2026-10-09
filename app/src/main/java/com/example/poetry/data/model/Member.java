@@ -8,9 +8,13 @@ import org.json.JSONObject;
 /**
  * 会员资格。
  * <p>
- * 眼下会员还<b>没有</b>解锁任何能力：他原本解锁的是腾讯云直连的在线发音人，
- * 而那条路已经撤掉（原因见 {@code media.EngineRouter} 的类注释）。等服务端代理的
- * 云端音色接上，这个开关才重新有意义。
+ * 会员解锁的是<b>云端音色</b>：那些音色由后端代理腾讯云合成，不在 App 里，
+ * 每次朗读都产生真实费用，所以只有开通的用户能选。
+ * <p>
+ * <b>判定基准在服务端</b>（{@code user.level} + {@code vip_expire_at}，
+ * 见 {@code GET /v1/user/profile}），这个类只是本地缓存：开机和登录后各刷新一次
+ * （{@code PoetryRepository.refreshProfile()}），刷新不到就按未开通处理。
+ * 换句话说，这里的值判宽了也没用——合成接口在服务端照样会拒。
  * <p>
  * 内置离线音色全部免费，会员与否不影响它们——会员到期后最多是音色回到离线默认，
  * 不会出现「点了朗读没有声音」这种结果。
@@ -23,22 +27,18 @@ public class Member {
 
     /** 未开通 */
     public static final int LEVEL_FREE = 0;
-    /** 已开通：可以使用腾讯（云端）发音人 */
+    /** 已开通：可以使用云端（服务端代理的腾讯云）发音人 */
     public static final int LEVEL_VIP = 1;
 
     /**
-     * 测试期开关：暂定默认给所有人开通会员，方便验证云端音色这条链路。
+     * 开通来源：服务端资料（{@code GET /v1/user/profile}）。
      * <p>
-     * 它只在「从来没写过会员记录」时起作用——用户一旦在语音设置页手动切换过状态，
-     * 之后就以存下来的记录为准，不再受这个常量影响。
-     * <p>
-     * 正式收费上线时把它改成 {@code false}：改完没有会员记录的用户就是普通用户，
-     * 云端音色一律显示成锁定态。
+     * 曾经还有一个「本地放行开关」（{@code GRANT_BY_DEFAULT_FOR_TEST} + {@code SOURCE_TEST}），
+     * 已经删掉：本机开出来的会员换不来一次成功的合成——音色的锁定态由服务端按请求里的
+     * token 现算（见 {@code /v1/tts/voices}），本机这个布尔值连措辞都改不动，
+     * 留着只会让人以为会员能在客户端开关。
      */
-    public static final boolean GRANT_BY_DEFAULT_FOR_TEST = true;
-
-    /** 开通来源标记，只用于排查问题，不参与判定。 */
-    public static final String SOURCE_TEST = "test";
+    public static final String SOURCE_SERVER = "server";
 
     private static final String KEY_LEVEL = "level";
     private static final String KEY_EXPIRE_AT = "expireAt";

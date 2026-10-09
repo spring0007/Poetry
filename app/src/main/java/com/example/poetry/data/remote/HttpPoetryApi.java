@@ -11,6 +11,7 @@ import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Dynasty;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
+import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 
 import org.json.JSONArray;
@@ -299,6 +300,15 @@ public final class HttpPoetryApi implements PoetryApi {
     }
 
     // ------------------------------------------------------------ 账号
+
+    /**
+     * 个人资料。会员权益的唯一来源（见 {@link PoetryApi#profile()}）。
+     */
+    @NonNull
+    @Override
+    public UserProfile profile() throws ApiException {
+        return UserProfile.fromJson(ApiClient.asObject(client.get(ApiConfig.API_PROFILE)));
+    }
 
     /**
      * 下发验证码。

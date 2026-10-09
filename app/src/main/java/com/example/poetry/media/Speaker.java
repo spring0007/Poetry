@@ -16,10 +16,11 @@ import java.util.List;
 /**
  * 朗读的唯一入口（UI 只认识这个类）。
  * <p>
- * 底下是 {@link EngineRouter}（目前只有内置离线引擎 {@link SherpaTts}）：sherpa-onnx + 随 APK 分发的中文 VITS 语音包，
- * 整条合成链路跑在本机，装上就能读，不需要联网、也不依赖任何第三方 App。
- * 语音包缺失或 native 库加载失败时 {@link #isReady()} 为 false，
- * 界面应当给出引导而不是硬读。
+ * 底下是 {@link EngineRouter}，它把两个引擎合成一个：内置离线引擎 {@link SherpaTts}
+ * （sherpa-onnx + 随 APK 分发的中文 VITS 语音包，整条合成链路跑在本机，装上就能读，
+ * 不需要联网、也不依赖任何第三方 App）和服务端代理的云端音色 {@link CloudTts}
+ * （要联网、要登录、要会员）。语音包缺失或 native 库加载失败时 {@link #isReady()}
+ * 为 false，界面应当给出引导而不是硬读。
  * <p>
  * 这一层另外管一件事：记住用户<i>选</i>的音色，好在引擎就绪后照它再下发一次。但界面上
  * 「当前是哪个音色」一律以 {@link #currentVoiceId()} 为准——它每次都问引擎，报的是真正
@@ -126,6 +127,9 @@ public final class Speaker {
     /**
      * 引擎不可用时返回空列表。上层对空列表是安全的：音色弹层在
      * {@code size() <= 1} 时会显示说明行，语音设置页也只会显示「0 种可用」。
+     * <p>
+     * 云端音色也在表里（由 {@link EngineRouter} 拼进来），可能随目录晚到——界面想知道
+     * 「表是不是已经全了」，看 {@link #isVoiceListSettled()}。
      */
     @NonNull
     public List<Voice> listVoices() {
@@ -191,6 +195,44 @@ public final class Speaker {
 
     public void speak(@NonNull String text) {
         engine.speak(text);
+    }
+
+    /**
+     * 读一个作品（详情页正文朗读）。
+     * <p>
+     * 和 {@link #speak(String)} 分开，是因为云端音色是按作品合成整首的（见
+     * {@link SpeechEngine#speakWork}）：带上「这是哪一首」，它才合成得了。没有作品引用的
+     * 朗读（试听、逐句朗读）继续走 {@code speak}，那边恒用本机音色。
+     *
+     * @param workRef 作品引用，见 {@code Poem#getLookupRef()}
+     */
+    public void speakWork(@NonNull String workRef, @NonNull String text) {
+        engine.speakWork(workRef, text);
+    }
+
+    /**
+     * 音色表变了（云端目录拉到了，或确认拉不到）。
+     * <p>
+     * 云端那份要走网络，界面画完了它才到是常态，所以需要一次通知而不是轮询；
+     * 回调在主线程。设置页注册它来重画音色列表，别的页面不关心可以不管。
+     */
+    public void setVoiceListListener(@Nullable Runnable listener) {
+        engine.setVoiceListListener(listener);
+    }
+
+    /** 音色表是不是已经落定（拉回来了，或确认拉不到）。见 {@link SpeechEngine#isVoiceListSettled()} */
+    public boolean isVoiceListSettled() {
+        return engine.isVoiceListSettled();
+    }
+
+    /**
+     * 重新取一次音色表。
+     * <p>
+     * 登录态一变，云端音色的锁定态就跟着变（那是服务端判的），所以要重取一次。
+     * 本机音色不受影响；接口侧自带节流，重复调用是安全的。
+     */
+    public void refreshVoices() {
+        engine.refreshVoices();
     }
 
     /**

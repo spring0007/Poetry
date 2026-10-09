@@ -15,6 +15,7 @@ import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
 import com.example.poetry.data.model.PoemKind;
+import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 import com.example.poetry.data.remote.ApiException;
 import com.example.poetry.data.remote.HttpPoetryApi;
@@ -601,9 +602,74 @@ public final class PoetryRepository {
             if (store.getNickname().isEmpty() && !result.getNickname().isEmpty()) {
                 store.setNickname(result.getNickname());
             }
+            // 登录响应里也带了 user 对象，但资料接口才是权威口径 ——
+            // 它反映的是「此刻库里的样子」（含 status 被禁用这种登录之后才变的字段）。
+            // 这里再拉一次，让刚登录的用户立刻拿到正确的会员权益；
+            // 拉不到也不抛出：登录已经成功，下次 App 启动还会再刷。
+            try {
+                fetchProfile();
+            } catch (ApiException e) {
+                LogUtil.d("登录后刷新资料失败（下次启动会重试）：" + e);
+            }
             pushLibraryQuietly();
             return result;
         }, callback);
+    }
+
+    /**
+     * 刷新服务端资料缓存（会员权益 + 昵称）。
+     *
+     * <p>调用时机：App 启动、登录成功之后。将来「我的」页下拉刷新也可以用它。
+     *
+     * @param callback 可空。{@code onError} 只说明「这次没刷上」，不代表账号有问题
+     */
+    public void refreshProfile(@Nullable Callback<UserProfile> callback) {
+        AppExecutors.get().net(() -> {
+            UserProfile profile;
+            try {
+                profile = fetchProfile();
+            } catch (ApiException e) {
+                LogUtil.d("刷新资料失败，本次按未开通处理：" + e);
+                if (callback != null) {
+                    AppExecutors.get().main(() -> callback.onError(e));
+                }
+                return;
+            }
+            if (callback != null) {
+                AppExecutors.get().main(() -> callback.onData(profile));
+            }
+        });
+    }
+
+    /**
+     * 拉一次资料并写进 {@link UserStore}；任何失败都会把本地权益清成未开通。
+     *
+     * <p>失败即降级（而不是保留上一次的缓存）是有意的：见
+     * {@link UserStore#setAccount} 的注释 —— 判定基准在服务端，本地多留一份
+     * 无助于真能合成，只会把失败推迟到用户点下朗读的那一刻。
+     *
+     * <p>回填昵称，但**不回填头像**：本地那个头像字段存的是「一个汉字或印象 emoji」
+     * （见 {@code UserStore.getAvatar()}），服务端给的是图片 URL，塞进去界面会显示
+     * 一串网址。等头像真接上（要一套加载器）再说。
+     */
+    @NonNull
+    private UserProfile fetchProfile() throws ApiException {
+        if (!store.isAuthTokenValid()) {
+            store.setAccount(null);
+            throw new ApiException(ApiException.UNAUTHORIZED, "未登录");
+        }
+        UserProfile profile;
+        try {
+            profile = remote.profile();
+        } catch (ApiException e) {
+            store.setAccount(null);
+            throw e;
+        }
+        store.setAccount(profile);
+        if (store.getNickname().isEmpty() && !profile.getNickname().isEmpty()) {
+            store.setNickname(profile.getNickname());
+        }
+        return profile;
     }
 
     /**

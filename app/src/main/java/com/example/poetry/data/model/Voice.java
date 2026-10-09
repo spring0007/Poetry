@@ -1,13 +1,17 @@
 package com.example.poetry.data.model;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
- * 朗读音色，由内置的离线引擎（{@code SherpaTts}）从语音包里枚举出来。
+ * 朗读音色，来源有两个：内置的离线引擎（{@code SherpaTts}）从语音包里枚举出来，
+ * 或者后台（{@code GET /v1/tts/voices}）下发。
  * <p>
- * {@code id} 形如 {@code sherpa-<语音包>-<sid>}，会原样存进 {@link TtsConfig}，
- * 所以它必须在同一个语音包下保持稳定——换了模型文件就可能对不上，
- * 那时按「没匹配上就用默认」处理（见 {@code SherpaTts.resolve}）。
+ * {@code id} 也跟着分两族：离线音色形如 {@code sherpa-<语音包>-<sid>}，
+ * 云端音色形如 {@code cloud-<音色 ID>}（见 {@link #CLOUD_PREFIX}）。
+ * 它会被原样存进 {@link TtsConfig}，所以两族 id 都必须在各自那一侧保持稳定：
+ * 离线音色换了模型文件就可能对不上，那时按「没匹配上就用默认」处理
+ * （见 {@code SherpaTts.resolve}）。
  * {@code desc} 是音色气质的一句话，{@code tag1/tag2} 放性别与语种标签供列表展示。
  */
 public class Voice {
@@ -138,5 +142,52 @@ public class Voice {
     @Override
     public String toString() {
         return name;
+    }
+
+    // ------------------------------------------------------------------ 云端音色 id
+
+    /**
+     * 云端音色的 id 前缀，形如 {@code cloud-101001}。
+     * <p>
+     * 后半段是服务端的音色标识，整张音色表由服务端下发（{@code GET /v1/tts/voices}），
+     * 客户端不再自己维护一份——两边各存一张表迟早会漂移，而音色是服务侧的资产，
+     * 加一个音色不该需要发版。
+     */
+    public static final String CLOUD_PREFIX = "cloud-";
+
+    /**
+     * 从前的云端音色前缀 {@code qcloud-}，只在读历史配置时会遇到。
+     * <p>
+     * 直连腾讯云那会儿 id 是客户端自己拼的（{@code qcloud-101001}），改走服务端代理后
+     * 统一成了 {@code cloud-}。用户存下来的选择不会跟着改，所以读到旧前缀要就地把前缀换掉
+     * （见 {@link #normalizeId}）——否则「上次选的云端音色」永远匹配不上任何一条音色，
+     * 界面会把它当成一个不认识的 id 一直挂着。
+     */
+    public static final String LEGACY_CLOUD_PREFIX = "qcloud-";
+
+    /**
+     * 是不是云端音色 id。含历史前缀，所以存了很久的旧配置也认。
+     * <p>
+     * 与 {@link #isCloud()} 不是一回事：那个看的是**这一条音色记录**从哪来（服务端下发 vs
+     * 语音包枚举），这里只认 id 的写法，用来判断「用户存的那个 id 是不是云端的」。
+     */
+    public static boolean isCloudId(@Nullable String id) {
+        return id != null
+                && (id.startsWith(CLOUD_PREFIX) || id.startsWith(LEGACY_CLOUD_PREFIX));
+    }
+
+    /**
+     * 把历史 id 规整成当前写法（{@code qcloud-101001} → {@code cloud-101001}），
+     * 其余原样返回；null 与空串都规整成空串，调用方永远拿到一个字符串。
+     */
+    @NonNull
+    public static String normalizeId(@Nullable String id) {
+        if (id == null || id.isEmpty()) {
+            return "";
+        }
+        if (id.startsWith(LEGACY_CLOUD_PREFIX)) {
+            return CLOUD_PREFIX + id.substring(LEGACY_CLOUD_PREFIX.length());
+        }
+        return id;
     }
 }

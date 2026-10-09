@@ -7,6 +7,7 @@ import com.example.poetry.data.model.Author;
 import com.example.poetry.data.model.Category;
 import com.example.poetry.data.model.Page;
 import com.example.poetry.data.model.Poem;
+import com.example.poetry.data.model.UserProfile;
 import com.example.poetry.data.model.Voice;
 
 import org.json.JSONArray;
@@ -155,6 +156,15 @@ public interface PoetryApi {
             throws ApiException;
 
     // ------------------------------------------------------------ 账号
+
+    /**
+     * 个人资料（需要登录）。
+     *
+     * <p>会员权益的唯一来源：{@code level} + {@code vipExpireAt} 决定云端音色能不能用。
+     * 客户端把它缓存下来只是为了让界面离线也有东西显示，判定基准仍在服务端。
+     */
+    @NonNull
+    UserProfile profile() throws ApiException;
 
     /** 下发登录验证码 */
     @NonNull
