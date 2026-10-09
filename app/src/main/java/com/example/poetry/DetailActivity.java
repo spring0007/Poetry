@@ -58,6 +58,13 @@ public class DetailActivity extends AppCompatActivity {
     /** 进入时到底带没带来源列表。重建后要靠它区分「列表到头」和「随机还能再抽」 */
     private static final String EXTRA_LIST_MODE = "extra_list_mode";
 
+    /**
+     * 平仄展示总开关。当前阶段用不到平仄，置 false 即整块屏蔽：
+     * 详情页不再展示平仄行，相关请求与版面一并停用。
+     * 数据链路与渲染逻辑（{@link #prettyStrain}）原样保留，改回 true 即恢复。
+     */
+    private static final boolean STRAIN_ENABLED = false;
+
     /** 越界拖多远才算翻页：太短会把「用力滚到底」误判成翻页 */
     private static final int SWIPE_TRIGGER_DP = 72;
 
@@ -270,7 +277,7 @@ public class DetailActivity extends AppCompatActivity {
 
         updateFavoriteIcon();
 
-        if (!poem.getStrain().isEmpty()) {
+        if (STRAIN_ENABLED && !poem.getStrain().isEmpty()) {
             binding.strainRow.setVisibility(View.VISIBLE);
             binding.strainText.setText(prettyStrain(poem.getStrain()));
         } else {
