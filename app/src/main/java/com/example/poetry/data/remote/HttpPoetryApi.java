@@ -238,6 +238,25 @@ public final class HttpPoetryApi implements PoetryApi {
         return JsonMapper.toKeywords(asArray(data));
     }
 
+    /**
+     * 检索联想。
+     *
+     * <p>与 {@code /v1/search} 不同，这个端点把结果**直接放在 {@code data} 顶层的数组里**，
+     * 没有 {@code {total,page,size,items}} 那层壳，所以这里走 {@code asArray} 而不是
+     * {@code toPoemsFromPage} —— 用错了解析器只会静默拿到空列表。
+     */
+    @NonNull
+    @Override
+    public List<Poem> suggest(@NonNull String prefix, int limit) throws ApiException {
+        if (prefix == null || prefix.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        Object data = client.get(ApiConfig.API_SEARCH_SUGGEST, ApiClient.query(
+                "q", prefix.trim(),
+                "limit", String.valueOf(Math.max(1, Math.min(limit, 50)))));
+        return JsonMapper.toPoems(asArray(data));
+    }
+
     // ------------------------------------------------------------ 语音
 
     @NonNull
@@ -313,6 +332,19 @@ public final class HttpPoetryApi implements PoetryApi {
         String name = user == null ? "" : user.optString("nickname", "");
         return new LoginResult(token, userId, name, o.optBoolean("created", false),
                 Jwt.expiryMillis(token));
+    }
+
+    /**
+     * 主动续签。
+     *
+     * <p>这条路同样会经过 {@code ApiClient} 的 401 自动续签逻辑：如果这里的凭据已经失效，
+     * 会先尝试用旧票换新票，换不到才抛出 401。所以调用方拿到异常时，
+     * 可以认为「确实该重新登录了」，而不是「只是这次没成功」。
+     */
+    @Override
+    public boolean refreshSession() throws ApiException {
+        JSONObject o = ApiClient.asObject(client.post(ApiConfig.API_AUTH_REFRESH, new JSONObject()));
+        return !o.optString("token", "").isEmpty();
     }
 
     @Override

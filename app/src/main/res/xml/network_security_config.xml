@@ -17,5 +17,7 @@
         <domain includeSubdomains="false">127.0.0.1</domain>
         <!-- 真机经 Wi-Fi 直连开发机（无线调试下 adb reverse 会随会话断开，局域网更稳） -->
         <domain includeSubdomains="false">192.168.1.114</domain>
+        <!-- 云端 ECS（阿里云 47.106.68.18:8000）-->
+        <domain includeSubdomains="false">47.106.68.18</domain>
     </domain-config>
 </network-security-config>

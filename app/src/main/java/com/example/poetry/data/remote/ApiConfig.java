@@ -22,6 +22,18 @@ public final class ApiConfig {
     public static final boolean ENABLED = BuildConfig.API_ENABLED;
 
     /**
+     * 应用包名（{@code com.example.poetry}）。
+     *
+     * <p>它承担两件事：一是作为构建期参数的**命名空间** ——
+     * {@code local.properties} 里的 {@code com.example.poetry.API_BASE_URL}
+     * 优先于通用的 {@code API_BASE_URL}（见 {@code app/build.gradle.kts} 的 {@code prop()}）；
+     * 二是随每个请求发出（{@code X-Client-Package} 头），
+     * 服务端日志据此能分清一次调用来自哪个 App —— 多端共用一个后端时这一点很关键。
+     */
+    @NonNull
+    public static final String APP_PACKAGE = BuildConfig.APP_PACKAGE;
+
+    /**
      * 服务根地址，**必定以 {@code /} 结尾**。
      *
      * <p>不做这个归一化的话，{@code local.properties} 里少写一个斜杠就会拼出
@@ -113,7 +125,9 @@ public final class ApiConfig {
     /** POST 续签（需带 token） */
     public static final String API_AUTH_REFRESH = "v1/auth/refresh";
 
-    /** GET/POST 书架 */
+    /** GET 个人资料 */
+    public static final String API_PROFILE = "v1/user/profile";
+    /** GET 书架列表 ?relType=&page=&size= */
     public static final String API_LIBRARY = "v1/user/library";
     /** POST 书架批量同步 */
     public static final String API_LIBRARY_SYNC = "v1/user/library/sync";

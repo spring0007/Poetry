@@ -48,6 +48,12 @@ public final class ApiClient {
     /** 失败响应体只截这么多字符进异常消息，避免把整页 HTML 错误页塞进 toast */
     private static final int ERROR_BODY_LIMIT = 300;
 
+    /**
+     * 请求来源标识头。服务端日志据此区分调用方 ——
+     * 多个 App 共用一个后端时，「这条错误是谁发出来的」靠的就是它。
+     */
+    private static final String HEADER_CLIENT = "X-Client-Package";
+
     private final Context appContext;
 
     // ------------------------- 熔断状态 -------------------------
@@ -140,6 +146,17 @@ public final class ApiClient {
     private Object execute(@NonNull String method, @NonNull String endpoint,
                            @Nullable Map<String, String> query, @Nullable String jsonBody)
             throws ApiException {
+        return execute(method, endpoint, query, jsonBody, true);
+    }
+
+    /**
+     * @param allowRefresh 遇到 401 时是否允许「先自动续签、再重放一次」。
+     *                     只有重放本身传 false，否则刷新不成功就会无限递归。
+     */
+    @Nullable
+    private Object execute(@NonNull String method, @NonNull String endpoint,
+                           @Nullable Map<String, String> query, @Nullable String jsonBody,
+                           boolean allowRefresh) throws ApiException {
 
         if (ApiConfig.ENABLED == false || ApiConfig.BASE_URL.isEmpty()) {
             throw new ApiException(ApiException.NOT_IMPLEMENTED, "后端未启用（ApiConfig.ENABLED=false）");
@@ -159,6 +176,7 @@ public final class ApiClient {
             conn.setReadTimeout(ApiConfig.READ_TIMEOUT_MS);
             conn.setInstanceFollowRedirects(true);
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty(HEADER_CLIENT, ApiConfig.APP_PACKAGE);
 
             String token = token();
             if (!token.isEmpty()) {
@@ -175,6 +193,14 @@ public final class ApiClient {
 
             int status = conn.getResponseCode();
             String body = readBody(status >= 400 ? conn.getErrorStream() : conn.getInputStream());
+
+            // 401：票据过期。手里还有 token 的话先用它换张新的，再把这个请求原样重放一次 ——
+            // 用户正读到一半，不该因为一次过期就被弹回登录页。
+            // 刷新不成功才落到下面按 401 抛，由上层引导重新登录。
+            if (status == 401 && allowRefresh && refreshToken()) {
+                conn.disconnect();
+                return execute(method, endpoint, query, jsonBody, false);
+            }
 
             if (status < 200 || status >= 300) {
                 ApiException e = httpError(status, body);
@@ -270,6 +296,66 @@ public final class ApiClient {
         }
         return new ApiException(ApiException.HTTP,
                 "服务端返回 " + status + "：" + head(detail), null, status);
+    }
+
+    // ------------------------------------------------------------ 自动续签
+
+    /**
+     * 用当前 token 换一张新票（{@code POST /v1/auth/refresh}），成功则写回 {@link UserStore}。
+     *
+     * <p>刻意**不走 {@link #execute}**：那条路径会再次触发「401 → 刷新」的递归，
+     * 也会把这次探路计入熔断账本。这里要的是一个安静的单次询问 ——
+     * 失败就返回 false，由调用方按普通 401 处理（引导重新登录）。
+     *
+     * <p>续签只延长会话，**不改变本地身份**：{@code loggedIn} / {@code provider} 那些字段
+     * 描述的是「用户是谁」，与票据无关，所以这里只调 {@code setAuthToken}。
+     */
+    private boolean refreshToken() {
+        HttpURLConnection conn = null;
+        try {
+            UserStore store = UserStore.get(appContext);
+            String token = store.getAuthToken();
+            if (token == null || token.isEmpty()) {
+                return false;
+            }
+
+            conn = (HttpURLConnection) new URL(
+                    ApiConfig.url(ApiConfig.API_AUTH_REFRESH)).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(ApiConfig.CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(ApiConfig.READ_TIMEOUT_MS);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty(HEADER_CLIENT, ApiConfig.APP_PACKAGE);
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write("{}".getBytes("UTF-8"));
+            }
+
+            if (conn.getResponseCode() != 200) {
+                return false;
+            }
+            JSONObject o = asObject(parseEnvelope(readBody(conn.getInputStream())));
+            String fresh = o.optString("token", "");
+            if (fresh.isEmpty()) {
+                return false;
+            }
+            long expireAt = Jwt.expiryMillis(fresh);
+            if (expireAt <= 0) {
+                expireAt = store.getAuthExpireAt();   // 解不出 exp 就沿用旧的到期时间
+            }
+            store.setAuthToken(fresh, store.getAuthUserId(), expireAt);
+            LogUtil.i("登录凭证已自动续签");
+            return true;
+        } catch (Exception e) {
+            LogUtil.w("自动续签失败：" + e.getClass().getSimpleName());
+            return false;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
     }
 
     // ------------------------------------------------------------ 熔断记账

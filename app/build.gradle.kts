@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+// 应用包名。同时作为**构建期参数的命名空间**：
+// local.properties 里既可以写通用键（API_BASE_URL），也可以写包名限定的键
+// （com.example.poetry.API_BASE_URL），后者优先。这样一份 local.properties
+// 能同时给多个 App / 多个环境供数，参数归属一目了然，不会串味。
+val appPackage = "com.example.poetry"
+
 // local.properties 用来注入「后端地址」这类**非机密**的构建期参数。
 //
 // 这里刻意不再注入任何云服务密钥：BuildConfig 的字符串常量是明文躺在 classes.dex 里的，
@@ -16,14 +22,25 @@ val localProperties = Properties().apply {
     }
 }
 
+/**
+ * 读一个构建期参数，三级回退：
+ *   1) 「包名限定键」，如 {@code com.example.poetry.API_BASE_URL}
+ *   2) 通用键，如 {@code API_BASE_URL}
+ *   3) 代码里的默认值
+ */
+fun prop(key: String, def: String): String =
+    localProperties.getProperty("$appPackage.$key")
+        ?: localProperties.getProperty(key, def)
+        ?: def
+
 android {
-    namespace = "com.example.poetry"
+    namespace = appPackage
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.poetry"
+        applicationId = appPackage
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -38,9 +55,11 @@ android {
         // API_ENABLED 是总闸：关掉它就彻底退回「完全离线」，一条网络请求都不发，
         // 用来快速判断某个问题是出在网络链路还是本地逻辑。
         buildConfigField("String", "API_BASE_URL",
-            "\"" + (localProperties.getProperty("API_BASE_URL", "http://10.0.2.2:8000/") ?: "") + "\"")
-        buildConfigField("boolean", "API_ENABLED",
-            (localProperties.getProperty("API_ENABLED", "true") ?: "true"))
+            "\"" + prop("API_BASE_URL", "http://10.0.2.2:8000/") + "\"")
+        buildConfigField("boolean", "API_ENABLED", prop("API_ENABLED", "true"))
+        // 请求来源标识：网络层把它放进 X-Client-Package 请求头，
+        // 服务端日志里就能分清一次请求来自哪个 App（多端共用一个后端时很有用）。
+        buildConfigField("String", "APP_PACKAGE", "\"$appPackage\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

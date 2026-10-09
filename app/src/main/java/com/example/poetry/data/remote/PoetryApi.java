@@ -116,6 +116,20 @@ public interface PoetryApi {
     @NonNull
     List<String> hotKeywords(int limit) throws ApiException;
 
+    /**
+     * 检索联想 —— 按**标题前缀**匹配。
+     *
+     * <p>与 {@link #search} 的分工：这里找「以这几个字开头的标题」，
+     * 走的是标题索引，输入框每敲一个字调一次也扛得住。
+     * 代价是「明月」搜不到《静夜思》—— 那属于内容检索，交给 {@link #search}。
+     *
+     * <p>返回结构与检索同构（可直接展示作者与朝代），不是纯字符串列表。
+     *
+     * @param limit 建议条数上限
+     */
+    @NonNull
+    List<Poem> suggest(@NonNull String prefix, int limit) throws ApiException;
+
     // ------------------------------------------------------------ 语音
 
     /** 云端音色列表（未配置密钥时也会返回，元素 {@code locked=true}） */
@@ -142,6 +156,15 @@ public interface PoetryApi {
     @NonNull
     LoginResult login(@NonNull String phone, @NonNull String code, @Nullable String nickname)
             throws ApiException;
+
+    /**
+     * 主动续签当前凭证，返回是否成功。
+     *
+     * <p>与 {@code ApiClient} 遇到 401 时的自动续签是同一件事，
+     * 区别只在**由谁发起**：这里供「我的」页的「延长登录」用，
+     * 让用户能在票据真正过期之前主动续一次，而不是等被弹回登录页才发现。
+     */
+    boolean refreshSession() throws ApiException;
 
     /** 朗读埋点。失败不影响功能，调用方可以忽略异常。 */
     void reportPlay(@Nullable String poemUid, @Nullable String voiceId, int durationMs)

@@ -89,6 +89,43 @@ public class ApiException extends Exception {
                 || (code == HTTP && bizCode >= 500);
     }
 
+    /**
+     * 给用户看的一句话。
+     *
+     * <p>UI 层直接把它塞进 toast / 提示条即可，不必自己再 switch 一遍错误码 ——
+     * 那些带 traceId、服务端原文的细节留在 {@link #getMessage()} 里，给日志和排查用。
+     * 两个面向不同读者，刻意分开。
+     *
+     * <p>网络类失败的措辞统一带上「已切换到本地诗库」：这个 App 的取数是
+     * 「远端 → 本地库 → 内置示例」三级回退，网络不通**不是错误状态**，
+     * 只是换了个数据源。把它说成「加载失败」会让用户以为 App 坏了。
+     */
+    @NonNull
+    public String userMessage() {
+        switch (code) {
+            case NOT_IMPLEMENTED:
+                return "离线模式";
+            case NETWORK:
+            case BREAKER_OPEN:
+                return "网络不可用，已切换到本地诗库";
+            case PARSE:
+                return "服务返回的数据无法解析，请稍后再试";
+            case UNAUTHORIZED:
+                return "登录已过期，请重新登录";
+            case RATE_LIMITED:
+                return "操作太频繁，请稍后再试";
+            case TTS_UNAVAILABLE:
+                return "云端朗读暂不可用，已切换本地语音";
+            case HTTP:
+                return bizCode >= 500 ? "服务器开小差了，请稍后再试"
+                        : "请求失败（HTTP " + bizCode + "）";
+            case BUSINESS:
+            default:
+                // 服务端的 message 本来就是写给用户看的，原样透出即可
+                return getMessage();
+        }
+    }
+
     @NonNull
     @Override
     public String toString() {
