@@ -10,7 +10,7 @@
     以后任何一处地址被改成 http 都会静默生效、没人拦。列在下面的每一条都要单独说明用途。
 
     当前后端是明文 http，所以云端 ECS 必须列在这里；后端上 HTTPS 之后
-    删掉 shiyun.rundefit.com 这一行即可（那时 443 走系统默认策略）。
+    删掉 47.106.68.18 这一行即可（那时 443 走系统默认策略）。
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
@@ -19,9 +19,8 @@
         <domain includeSubdomains="false">127.0.0.1</domain>
         <!-- 真机经 Wi-Fi 直连开发机（无线调试下 adb reverse 会随会话断开，局域网更稳） -->
         <domain includeSubdomains="false">192.168.1.114</domain>
-        <!-- 云端 ECS。走域名而不是 IP:8000：地址换了只改 DNS，APK 不用重新发。
-             8000 端口在换域名期间还留着（IP 那行是回退用的），收口之后连这一行一起删。 -->
-        <domain includeSubdomains="false">shiyun.rundefit.com</domain>
+        <!-- 云端 ECS，直连 IP:8000。曾试过挂 nginx 走域名 + 80 端口，已放弃：
+             多一层反代多一个会坏的地方，而这个后端只服务测试期。 -->
         <domain includeSubdomains="false">47.106.68.18</domain>
     </domain-config>
 </network-security-config>

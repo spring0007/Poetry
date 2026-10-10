@@ -200,8 +200,8 @@ inode 的 fd，会一直正常返回旧数据，永不报错**。所以装完库
 只负责补尾斜杠、校验合法性：
 
 ```properties
-# 换后端只改这一行；用域名而不是 IP:端口，理由见 §5
-com.example.poetry.API_BASE_URL=http://shiyun.rundefit.com/
+# 换后端只改这一行
+com.example.poetry.API_BASE_URL=http://47.106.68.18:8000/
 ```
 
 清单地址 = `ApiConfig.BASE_URL + ApiConfig.API_MANIFEST`（即 `static/version.json`），
@@ -216,7 +216,7 @@ com.example.poetry.API_BASE_URL=http://shiyun.rundefit.com/
 ```
 
 路径是 `ApiConfig.BASE_URL` + `ApiConfig.API_MANIFEST`（`static/version.json`）拼出来的，
-换服务器只改 `local.properties` 一行，见 §5。当前线上是 `http://shiyun.rundefit.com/static/`。
+换服务器只改 `local.properties` 一行，见 §5。当前线上是 `http://47.106.68.18:8000/static/`。
 
 `version.json`（`tools/make-version-json.py` 的实际产出）：
 
@@ -404,9 +404,11 @@ manifest.isSubset == local.isSubset && builtAt <= local.builtAt → UP_TO_DATE
 `com.example.poetry.API_BASE_URL`（按包名做命名空间，优先于通用的 `API_BASE_URL`）
 注入成 `BuildConfig`，默认值是 `http://10.0.2.2:8000/`（`API_ENABLED` 默认 `true`），
 也就是「模拟器访问宿主机上的本地后端」，clone 下来直接能联调。连线上后端时把那行改成
-`com.example.poetry.API_BASE_URL=http://shiyun.rundefit.com/` 即可——**用域名，不用 IP:端口**：
-后端换机器、换端口都只改 DNS 与 nginx，APK 不用重发；界面与 manifest 里也不会留下一个
-可被反编译读到的裸地址。
+`com.example.poetry.API_BASE_URL=http://47.106.68.18:8000/` 即可。
+
+（曾打算换成域名 `shiyun.rundefit.com` 走 80 端口，好处是后端换机器只改 DNS、APK 不用重发，
+界面里也不出现裸地址；**已放弃**——多一层 DNS 与 nginx 就多一个会坏的地方，而这个后端
+本来就只服务测试期。所以地址就是 IP:端口，换机器要重发 APK，这里写清楚免得下次又忘。）
 
 ```properties
 # local.properties（不进版本库）
