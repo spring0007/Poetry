@@ -121,8 +121,8 @@ dedup / 重排，整批 id 就会整体位移。实测当前库里 `id` 从 67,1
   能查到），所以 `.git` 现在是 57 MB，**新克隆照样要拖这 57 MB**。仓库只有三个提交，
   真要瘦下来只能重写历史（`git filter-repo --path app/src/main/assets/poetry/ --invert-paths`
   或直接重开仓库），等确认没人克隆过再动手。
-- 下载链路（§4）已实现，`:app:assembleDebug` 通过；`ApiConfig.BASE_URL` 还是
-  `https://api.example.com/poetry/` 占位值，**填上真实地址就能用**。
+- 下载链路（§4）已实现，`:app:assembleDebug` 通过；`ApiConfig.BASE_URL` 不再是
+  `https://api.example.com/poetry/` 占位值，已指向云端后端（`local.properties` 注入，见 §5）。
 - 实测 debug 包（2026-09-24，clean 之后）：**47,482,991 B**。其中
   `assets/tts/aishell3/model.onnx` 27.5 MB + `lib/` 12.9 MB + dex 4.6 MB——
   **语音合计约 85%**，诗库这条线腾出来的 58 MB 已经整块转手给了 TTS（见 TTS.md）。
@@ -195,73 +195,114 @@ inode 的 fd，会一直正常返回旧数据，永不报错**。所以装完库
 
 ### 怎么激活
 
-**只改一行**：`data/remote/ApiConfig.java` 的 `BASE_URL`。
+**只改一行**：`local.properties`（不进版本库）里的 `com.example.poetry.API_BASE_URL`，
+由 `app/build.gradle.kts` 读出来注入 `BuildConfig.API_BASE_URL`，`ApiConfig.BASE_URL`
+只负责补尾斜杠、校验合法性：
 
-```java
-public static final String BASE_URL = "https://<你的域名>/poetry/";
-// DbDownloadPolicy.MANIFEST_URL = BASE_URL + "version.json"，全工程只此一处要填
+```properties
+# 换后端只改这一行；用域名而不是 IP:端口，理由见 §5
+com.example.poetry.API_BASE_URL=http://shiyun.rundefit.com/
 ```
 
-然后把 §4.2 的两个文件传到该目录下即可，不需要发版。
+清单地址 = `ApiConfig.BASE_URL + ApiConfig.API_MANIFEST`（即 `static/version.json`），
+全工程只此一处要填。然后把 §4.2 的两个文件传到后端 `static/` 下即可，不需要发版。
 
 ### 4.1 服务端放什么
 
 ```
-https://<host>/poetry/
+<BASE_URL>static/
 ├── version.json      约 300 B，App 每次检查只拉这个
-└── poetry.db         诗库本体（当前 978 首样本库，约 3.8 MiB）
+└── poetry.db         诗库本体（当前 1878 首样本库，约 5.8 MiB）
 ```
 
-`version.json`：
+路径是 `ApiConfig.BASE_URL` + `ApiConfig.API_MANIFEST`（`static/version.json`）拼出来的，
+换服务器只改 `local.properties` 一行，见 §5。当前线上是 `http://shiyun.rundefit.com/static/`。
+
+`version.json`（`tools/make-version-json.py` 的实际产出）：
 
 ```json
-{ "schema_version": "3.3", "built_at": "2026-10-08T14:48:26",
-  "bytes": 4014080, "sha256": "<64位小写十六进制，指未压缩的服务端文件>",
-  "is_subset": true, "n_poems": 978,
-  "url": "https://<host>/poetry/poetry.db",
-  "note": "测试期子集库" }
+{ "schema_version": "3.4", "built_at": "2026-10-10T09:20:24",
+  "bytes": 6037504, "sha256": "1d8c926e…（64位小写十六进制，指未压缩的服务端文件）",
+  "is_subset": true, "n_poems": 1878,
+  "note": "测试期子集库：每（朝代,类型）最多 200 首" }
 ```
 
 `schema_version` 只比**主版本号**（`3.3` / `3.4` / `3.9` 互通，`4.0` 拒绝），
 规则见 `PoetryDatabase.Meta#schemaCompatible()`。
 
+`built_at` 是这份清单里最容易写错的一个字段，它被两条方向相反的约束夹着：
+
+| 约束 | 出处 | 要求 |
+|---|---|---|
+| 与**被发布那份库**的 `meta.built_at` | `DbInstaller.isForeign()` | 必须**相等**，否则每次都当外来库重下一遍 |
+| 比**用户已装那份库**的 `meta.built_at` | `DbManifest.isNewerThan()` | 必须**严格更大**（字典序），否则永远回「已是最新」 |
+
+所以它不能另取一个时间，只能照搬被发布那份库自己的值；而那个值是从母库整份抄过来的，
+母库不重建就不变——同一母库换个 `--per-group` 重抽，内容全变而 `built_at` 不动，
+第 2 条就**静默失效**。`tools/make-version-json.py` 为此会把抽样器当次写的
+`sample_built_at` 回写进 `meta.built_at`，因此**它是会改库的**：跑完要点是重新上传
+`poetry.db`（`bytes` / `sha256` 都变了）。格式必须是 `YYYY-MM-DDTHH:MM:SS` 且与库内同基准，
+格式一变字典序就比较不出谁新。
+
 `sha256` 必须是**未压缩文件**的。App 请求时带 `Accept-Encoding: identity`——否则中间有
 gzip 代理时 `Content-Length`、`Range` 偏移和这个 sha 全都指向压缩后的字节，整套校验静默错位。
+**反代那层必须显式 `gzip off`**：宝塔/Nginx 的全局配置常默认开着 gzip，而它只对
+`Accept-Encoding` 里带 gzip 的客户端生效，所以 curl 直连测是好的、App 却是坏的。
 
-`url` 放在 payload 里，以后换 CDN 不用发版。静态服务器需要支持 `Range`（续传）并返回
-`Accept-Ranges: bytes`；不支持也不会坏，只是每次从头下。**但服务器「忽略 Range 却返回 200」
-必须处理**——往半成品后面追加完整响应体会得到一个比预期更长的损坏文件，`HttpDownloader`
-检测到 `rangeRequested && code == 200` 时会删掉 `.part` 重新开始。
+`url` 是**可选**字段，`DbManifest.parse()` 在它为空时回退到「清单同级的那份 `poetry.db`」。
+现在刻意不写：写死反而把清单和服务器路径绑在一起，换 CDN 要重新发清单。
+（写上去也支持，那种情况下换地址同样不用发版。）
+
+静态服务器需要支持 `Range`（续传）并返回 `Accept-Ranges: bytes`；不支持也不会坏，只是每次
+从头下。**但服务器「忽略 Range 却返回 200」必须处理**——往半成品后面追加完整响应体会得到一个
+比预期更长的损坏文件，`HttpDownloader` 检测到 `rangeRequested && code == 200` 时会删掉
+`.part` 重新开始。
 
 ### 4.2 测试期的子集库怎么造
 
-> ⚠️ `tools/make-subset-db.py` **还没跟上 schema 3.3**，四条硬编码要一起改：
-> `EXPECTED_SCHEMA_VERSION = "3.0"`、只认五张表（不拷 `poem_extras`）、
-> `subset=1`（新标记是 `sample=1`）、`EXPECTED_TABLE_COUNT = 17`（sources 行数）。
-> 现在拿它跑 3.3 的母库，光自检那一关就会以「schema_version 应为 3.0」失败；
-> 就算绕过自检，产出物也会被 `DbValidator` 以「诗库缺少表: poem_extras」拒掉。
-> 当前 assets 里那份 978 首样本是新管线的**抽样器**产的（`sample=1`），不是这个脚本。
+**两件事、两个工具**（分布在两个仓库里）：抽样器出库，本仓库的脚本配清单。
+
+**① 出库** —— 用上游管线自带的抽样器，按 `(朝代, 类型)` 分组，每组最多 N 首：
 
 ```bash
-python -X utf8 tools/make-subset-db.py \
-    --src E:/chinese-poetry-master/poetry-pipeline/dist/poetry.db \
-    --out dist-server/poetry.db \
-    --per-source 200 \
-    --url https://<你的域名>/poetry/poetry.db
+cd E:/chinese_poetry_iterate/poetry-pipeline
+python -X utf8 make_sample_db.py \
+    --db dist/poetry.db \
+    --out E:/AndroidPro/Poetry/dist-server/poetry.db \
+    --per-group 200 --seed 42
 ```
 
-产出 `dist-server/poetry.db` 和 `dist-server/version.json`，并把 sha256 填好。
-`dist-server/` 已 gitignore（重建一次 sha 就变，不该进版本库）。
-（历史数字：旧脚本对旧母库跑 `--per-source 200` 得到 2,310,144 B / 2,062 首 / 309 作者，
-仅作参考——脚本没跟上 3.3，见上方警告。）
+固定 `--seed` 保证可复现（同一条命令跑两次得到逐字节相同的库，「第 37 条不对」这种描述才有
+意义）。组内**先取带扩展资料的**再随机补足，让译文/赏析/配图面板在样本库上真的有内容可渲染。
+当前 `--per-group 200` 得到 **15 组 / 1878 首 / 1330 条扩展资料 / 17 个来源 / 约 5.8 MiB**；
+`0` 表示不限（全量 357186 首、约 115 MiB，不要）。
 
-脚本做的是**行拷贝**（`shutil.copy2` 后按 `src_id` 取 `score` 前 N），不是重新跑
-`poetry-pipeline`，所以 schema、索引、`sqlite_stat1` 与线上库逐字节同构，秒级完成。
-**绝不能对 `dist/poetry.db` 原地执行。**
+母库 id / uid **沿用原值**，所以平仄包 `poetry-strains.db` 照旧能按 id `ATTACH` 上来，
+不必单独出一份简化平仄库。`meta` 里会写上 `sample=1`（App 认的样本标记就是它，不是旧的
+`subset=1`），以及 `sample_parent` / `sample_per_group` / `sample_seed` 等口径记录。
 
-`--min-hits 20` 会按 `HOT_KEYWORDS` / `Theme.defaults()` 兜底补行，保证首页热门搜索和主题
-chip 点下去不为空（旧母库上一次补了 130 条）。旧脚本的历史规模参考：`--per-source 50 → 625 首`，
-`200 → 2,062 首`，`1000 → 5,612 首`。
+> **不要 `--out` 指到 `dist/poetry.db` 自己**：抽样器会 `ATTACH` 源库，原地执行等于自己读自己。
+> 也不要再拿 `tools/make-subset-db.py` 去跑——它已随 schema 3.4 一起删除：它的每条 SQL 都在
+> `JOIN poems.author_id`，而 3.4 起母库只有 `author_uid`；它也不拷 `poem_extras`，
+> 产出物会被 `DbValidator` 以「诗库缺少表: poem_extras」直接拒掉。
+
+**② 配清单** —— 抽样器**不产** `version.json`：
+
+```bash
+python -X utf8 tools/make-version-json.py --db dist-server/poetry.db
+```
+
+从库里读 `meta` 填 `schema_version` / `n_poems` / `is_subset`，算 `bytes` 与未压缩文件的
+`sha256`，**并把抽样器写的 `sample_built_at` 回写成 `meta.built_at`**（为什么必须如此见 §4.1
+的 `built_at` 那条）。回写会改字节，所以顺序是「先跑它、再上传」，反过来清单就对不上文件。
+脚本还会在写清单**之前**按 `DbValidator.REQUIRED_TABLES` 挡一道——发布闸门放在这里，
+比线上出现「下载成功但装不上」再回头查便宜得多。`--check` 只报告不落盘。
+
+先跑 `--check` 看一遍再落盘是个好习惯；同一份库重复跑是**幂等**的（`built_at` 取的是当次
+抽样时间而不是当前时间），所以「上传完手滑又跑了一次」不会造出一份与线上文件对不上的清单。
+
+产物落在 `dist-server/`，已 gitignore（重建一次 sha 就变，不该进版本库）。传上服务器后要核
+一遍 `Content-Length == bytes` 且 `sha256sum` 与清单一致，见 §4.1。
 
 ### 4.3 状态机
 
@@ -324,7 +365,8 @@ manifest.isSubset == local.isSubset && builtAt <= local.builtAt → UP_TO_DATE
 ### 4.6 真机自测清单
 
 1. 卸载重装 → 冷启动：走示例数据，我的页显示「开始下载」→ 点它 → 看到进度 → 完成后变
-   「已载入本地诗库」，**列表立刻从 15 首变成新库的篇数（当前 978 首）**。数字没变就是 `ensureOpen()` 的早退
+   「已载入本地诗库」，**列表立刻从 15 首变成新库的篇数**（当前发布的样本库是 1878 首，
+   以线上 `version.json` 的 `n_poems` 为准）。数字没变就是 `ensureOpen()` 的早退
    没被 generation 戳破。
 2. 下到一半 `adb shell am force-stop`，重启：应显示旧/示例状态，`.part` 要么续传要么被 gc；
    再点下载应能成功，**绝不能出现被截断的库被装上**。
@@ -361,8 +403,10 @@ manifest.isSubset == local.isSubset && builtAt <= local.builtAt → UP_TO_DATE
 **地址哪来的**：不在版本库里。`app/build.gradle.kts` 从 `local.properties` 读
 `com.example.poetry.API_BASE_URL`（按包名做命名空间，优先于通用的 `API_BASE_URL`）
 注入成 `BuildConfig`，默认值是 `http://10.0.2.2:8000/`（`API_ENABLED` 默认 `true`），
-也就是「模拟器访问宿主机上的本地后端」，clone 下来直接能联调。联调真机时把那行改成
-`com.example.poetry.API_BASE_URL=http://47.106.68.18:8000/` 即可。
+也就是「模拟器访问宿主机上的本地后端」，clone 下来直接能联调。连线上后端时把那行改成
+`com.example.poetry.API_BASE_URL=http://shiyun.rundefit.com/` 即可——**用域名，不用 IP:端口**：
+后端换机器、换端口都只改 DNS 与 nginx，APK 不用重发；界面与 manifest 里也不会留下一个
+可被反编译读到的裸地址。
 
 ```properties
 # local.properties（不进版本库）
@@ -390,9 +434,9 @@ com.example.poetry.API_ENABLED=true
 * 35 万行 `LIKE '%x%'` 是主要开销。检索已经**先在本地出图、远端再替换第一页**
   （见 §5 的取数次序），所以本地这一遍不能省；真要提速得给 `poems` 建 FTS5 虚拟表
   （需另行导出，源库未开）。
-* `score`（0–255）可直接用作「精选」排序依据。母库均值 173.5，而当前 978 首样本
-  均值只有 **57.6**（978 首里 683 首是 0）——抽样按「朝代/体裁分组各取 100 首」来，
-  `score` 分布不再代表母库，所以**别拿样本库的分数分布去调阈值**。
+* `score`（0–255）可直接用作「精选」排序依据。母库均值 173.5，而当前 1878 首样本
+  均值只有 **60.3**（1878 首里 1287 首是 0）——抽样按「朝代/体裁分组先取带资料的、再随机
+  补足」来，`score` 分布不再代表母库，所以**别拿样本库的分数分布去调阈值**，先在母库上量。
 * 母库里有 5 首「一整本书算一首」的超长作品（古文观止 141,014 字、文字蒙求 39,964、
   唐诗三百首 25,056、幼学琼林 21,368、千家诗 10,020），分数都是 0，所以「精选」天然
   不会选到；但「随机换一首」会，因此 `PoetryDatabase.MAX_RANDOM_N_CHAR = 2000` 把它们

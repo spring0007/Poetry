@@ -25,5 +25,6 @@ local.properties*
 /app/src/main/assets/poetry/*.db
 
 # 上传到服务器的产物：子集库 + version.json。
-# 由 tools/make-subset-db.py 生成，重建一次 sha256 就变，不该进版本库。
+# 库由 poetry-pipeline/make_sample_db.py 抽，清单由 tools/make-version-json.py 配；
+# 重建一次 sha256 就变，不该进版本库。
 /dist-server/
