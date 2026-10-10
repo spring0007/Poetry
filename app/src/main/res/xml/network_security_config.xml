@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    明文 HTTP 只对**回环地址**开口，为的是本地测试诗库下载。
+    明文 HTTP 只对**逐个列出的主机**开口，不整体放开。
 
     API 28 起系统默认禁止明文，而报错是 「Cleartext HTTP traffic not permitted」——
     发生在传输任何字节之前，只有真机能看出来（API 24~27 的设备又是好的，所以像偶发 bug）。
     模拟器访问宿主机上的测试服务器用 10.0.2.2，真机走 adb reverse 用 localhost。
 
     刻意**不用** android:usesCleartextTraffic="true"：那是给所有域名开口，
-    生产环境的诗库地址会跟着降级成明文。这两个域名的共同点是**不可能**指向公网服务器，
-    所以这份配置进了生产包也不会带来任何实际风险。
+    以后任何一处地址被改成 http 都会静默生效、没人拦。列在下面的每一条都要单独说明用途。
+
+    当前后端是明文 http，所以云端 ECS 必须列在这里；后端上 HTTPS 之后
+    删掉 shiyun.rundefit.com 这一行即可（那时 443 走系统默认策略）。
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
@@ -17,7 +19,9 @@
         <domain includeSubdomains="false">127.0.0.1</domain>
         <!-- 真机经 Wi-Fi 直连开发机（无线调试下 adb reverse 会随会话断开，局域网更稳） -->
         <domain includeSubdomains="false">192.168.1.114</domain>
-        <!-- 云端 ECS（阿里云 47.106.68.18:8000）-->
+        <!-- 云端 ECS。走域名而不是 IP:8000：地址换了只改 DNS，APK 不用重新发。
+             8000 端口在换域名期间还留着（IP 那行是回退用的），收口之后连这一行一起删。 -->
+        <domain includeSubdomains="false">shiyun.rundefit.com</domain>
         <domain includeSubdomains="false">47.106.68.18</domain>
     </domain-config>
 </network-security-config>

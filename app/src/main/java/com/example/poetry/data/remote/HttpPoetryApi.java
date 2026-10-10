@@ -85,7 +85,9 @@ public final class HttpPoetryApi implements PoetryApi {
         if (!DbDownloadPolicy.isOnline(appContext)) {
             return "无网络连接";
         }
-        return "已连接 " + ApiConfig.BASE_URL;
+        // 不回显 BASE_URL：这行是给用户看的，主机名、端口、协议都不该出现在界面上。
+        // 排查问题要看地址时从 logcat 取，用户界面不是诊断面板。
+        return "已连接云端服务";
     }
 
     // ------------------------------------------------------------ 内容
